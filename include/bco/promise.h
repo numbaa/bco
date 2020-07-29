@@ -1,5 +1,5 @@
 #pragma once
-#include <experimental/coroutine>
+#include <coroutine>
 
 namespace bco {
 
@@ -9,11 +9,11 @@ public:
     {
         return {};
     }
-    auto initial_suspend() -> std::experimental::suspend_never
+    auto initial_suspend() -> std::suspend_never
     {
         return {};
     }
-    auto final_suspend() -> std::experimental::suspend_never
+    auto final_suspend() -> std::suspend_never
     {
         return {};
     }
