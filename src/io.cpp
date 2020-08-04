@@ -1,4 +1,5 @@
 #include <bco/io.h>
+#include <coroutine>
 
 namespace bco {
 
@@ -15,25 +16,29 @@ TcpSocket::TcpSocket(Proactor& proactor)
 Task<int> TcpSocket::read()
 {
     Task<int> task;
-    task.set_co_task([=](std::coroutine_handle<> resume) {
-        proactor_.read([=]() mutable {
+    task.set_co_task([task, this](std::coroutine_handle<> resume) mutable {
+        proactor_.read([task, resume, this]() mutable {
             //这Task早析构了吧
             task.set_result(0);
             resume();
         });
     });
+    return task;
 }
 
 Task<int> TcpSocket::write()
 {
+    return Task<int> {};
 }
 
 Task<int> TcpSocket::accept()
 {
+    return Task<int> {};
 }
 
 int TcpSocket::bind()
 {
+    return 0;
 }
 
 } // namespace bco

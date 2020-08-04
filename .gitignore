@@ -33,3 +33,5 @@
 
 # Projects
 .vscode
+build
+out

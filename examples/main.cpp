@@ -2,7 +2,7 @@
 
 int main()
 {
-    auto executor = bco::Executor{};
+    bco::Executor executor {};
     executor.post([]() {
         //
     });
