@@ -1,5 +1,4 @@
 #pragma once
-#include <liburing.h>
 
 #include "executor.h"
 #include "task.h"
@@ -18,18 +17,6 @@ public:
 
 private:
     Proactor& proactor_;
-};
-
-class Proactor {
-public:
-    Proactor(Executor& executor);
-    void read(std::function<void()>);
-    void write(std::function<void()>);
-    void accept(std::function<void()>);
-
-private:
-    ::io_uring iouring_;
-    Executor& executor_;
 };
 
 }
