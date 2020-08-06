@@ -2,6 +2,7 @@
 
 #include "executor.h"
 #include "task.h"
+#include "proactor.h"
 
 namespace bco {
 

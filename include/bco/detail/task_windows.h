@@ -7,6 +7,9 @@
 namespace bco {
 
 template <typename T>
+using coroutine_handle = std::experimental::coroutine_handle<T>;
+
+template <typename T>
 class Task {
 public:
     using promise_type = promise_simple<Task<T>>;
@@ -27,7 +30,7 @@ public:
 
 private:
     T result_;
-    std::function<void(std::coroutine_handle<>)> co_task_;
+    std::function<void(std::experimental::coroutine_handle<>)> co_task_;
 };
 
 template <>

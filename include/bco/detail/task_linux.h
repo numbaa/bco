@@ -7,6 +7,10 @@
 namespace bco {
 
 template <typename T>
+using coroutine_handle = std::experimental::coroutine_handle<T>;
+
+
+template <typename T>
 class Task {
 public:
     using promise_type = promise_simple<Task<T>>;
