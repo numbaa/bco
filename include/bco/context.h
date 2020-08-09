@@ -5,7 +5,7 @@
 
 namespace bco {
 
-class Executor {
+class Context {
 public:
     void post(std::function<void()> func);
     void run();

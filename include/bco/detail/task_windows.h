@@ -2,6 +2,7 @@
 
 #include <experimental/coroutine>
 #include <functional>
+#include <memory>
 #include "promise_windows.h"
 
 namespace bco {
@@ -14,14 +15,14 @@ class Task {
 public:
     using promise_type = promise_simple<Task<T>>;
     bool await_ready() const { return false; }
-    T await_resume() { return result_; }
+    T await_resume() { return result_ ? *result_ : T{}; }
     void await_suspend(std::experimental::coroutine_handle<> handle)
     {
         co_task_(handle);
     }
     void set_result(T result)
     {
-        result_ = result;
+        result_ = std::make_shared(result);
     }
     void set_co_task(std::function<void(std::experimental::coroutine_handle<>)> task)
     {
@@ -29,7 +30,7 @@ public:
     }
 
 private:
-    T result_;
+    std::shared_ptr<T> result_;
     std::function<void(std::experimental::coroutine_handle<>)> co_task_;
 };
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "executor.h"
+#include "context.h"
 #include "task.h"
 #include "proactor.h"
 
@@ -10,14 +10,14 @@ class Proactor;
 
 class TcpSocket {
 public:
-    TcpSocket(Proactor& proactor);
-    [[nodiscard]] Task<int> read();
-    [[nodiscard]] Task<int> write();
+    TcpSocket(Proactor* proactor);
+    [[nodiscard]] Task<int> read(std::shared_ptr<std::vector<uint8_t>> buffer);
+    [[nodiscard]] Task<int> write(std::shared_ptr<std::vector<uint8_t>> buffer);
     [[nodiscard]] Task<int> accept();
     int bind();
 
 private:
-    Proactor& proactor_;
+    Proactor* proactor_;
 };
 
 }

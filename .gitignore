@@ -33,5 +33,7 @@
 
 # Projects
 .vscode
+.vs
+CMakeSettings.json
 build
 out

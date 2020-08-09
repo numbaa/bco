@@ -1,4 +1,7 @@
 ﻿#pragma once
+
+#ifndef _WIN32
+
 #include <coroutine>
 #include <exception>
 
@@ -44,3 +47,5 @@ public:
 };
 
 } //namespace bco
+
+#endif // _WIN32

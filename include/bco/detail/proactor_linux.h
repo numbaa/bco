@@ -1,4 +1,5 @@
 ﻿#pragma once
+#ifndef _WIN32
 
 #include <functional>
 
@@ -17,3 +18,5 @@ private:
 };
 
 }
+
+#endif // _WIN32

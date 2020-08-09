@@ -1,13 +1,17 @@
 ﻿#pragma once
+
+#ifndef _WIN32
+
 #include <coroutine>
 #include <functional>
+#include <memory>
 
 #include "promise_linux.h"
 
 namespace bco {
 
 template <typename T>
-using coroutine_handle = std::experimental::coroutine_handle<T>;
+using coroutine_handle = std::coroutine_handle<T>;
 
 
 template <typename T>
@@ -22,7 +26,7 @@ public:
     }
     void set_result(T result)
     {
-        result_ = result;
+        result_ = std::make_shared(result);
     }
     void set_co_task(std::function<void(std::coroutine_handle<>)> task)
     {
@@ -30,7 +34,7 @@ public:
     }
 
 private:
-    T result_;
+    std::shared_ptr<T> result_;
     std::function<void(std::coroutine_handle<>)> co_task_;
 };
 
@@ -54,3 +58,5 @@ private:
 };
 
 } //namespace bco
+
+#endif // _WIN32

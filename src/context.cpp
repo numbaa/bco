@@ -1,16 +1,16 @@
-#include <bco/executor.h>
+#include <bco/context.h>
 #include <chrono>
 #include <thread>
 
 namespace bco {
 
-void Executor::post(std::function<void()> func)
+void Context::post(std::function<void()> func)
 {
     std::lock_guard<std::mutex> lock { mutex_ };
     tasks_.push_back(func);
 }
 
-void Executor::run()
+void Context::run()
 {
     while (true) {
         mutex_.lock();
