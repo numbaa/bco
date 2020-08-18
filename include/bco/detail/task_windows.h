@@ -7,50 +7,101 @@
 
 namespace bco {
 
-template <typename T>
-using coroutine_handle = std::experimental::coroutine_handle<T>;
+template <typename PromiseType>
+using coroutine_handle = std::experimental::coroutine_handle<PromiseType>;
 
-template <typename T>
-class Task {
+using suspend_always = std::experimental::suspend_always;
+
+using suspend_never = std::experimental::suspend_never;
+
+
+
+namespace detail {
+
+template <typename PromiseType>
+class Awaitable {
 public:
-    using promise_type = promise_simple<Task<T>>;
-    bool await_ready() const { return false; }
-    T await_resume() { return result_ ? *result_ : T{}; }
-    void await_suspend(std::experimental::coroutine_handle<> handle)
+    Awaitable(coroutine_handle<PromiseType> coroutine)
+        : coroutine_(coroutine)
     {
-        co_task_(handle);
     }
-    void set_result(T result)
+    bool await_ready() const noexcept
     {
-        result_ = std::make_shared(result);
+        return coroutine_.done();
     }
-    void set_co_task(std::function<void(std::experimental::coroutine_handle<>)> task)
+    coroutine_handle<> await_suspend(coroutine_handle<> coroutine) noexcept
     {
-        co_task_ = task;
+        coroutine_.promise().set_caller_coroutine(coroutine);
+        return coroutine_;
+    }
+    decltype(auto) await_resume() noexcept
+    {
+        return coroutine_.promise().result();
     }
 
 private:
-    std::shared_ptr<T> result_;
-    std::function<void(std::experimental::coroutine_handle<>)> co_task_;
+    coroutine_handle<PromiseType> coroutine_;
 };
 
-template <>
-class Task<void> {
+template <typename TaskType>
+class TaskPromise {
+    struct FinalAwaitable {
+        bool await_ready() noexcept { return false; }
+        template <typename PromiseType>
+        coroutine_handle<> await_suspend(coroutine_handle<PromiseType> coroutine) noexcept
+        {
+            return coroutine.promise().caller_coroutine();
+        }
+        void await_resume() noexcept { }
+    };
+
 public:
-    using promise_type = promise_simple<Task<void>>;
-    bool await_ready() const { return false; }
-    void await_resume() {}
-    void await_suspend(std::experimental::coroutine_handle<> handle)
+    TaskPromise() noexcept  = default;
+    auto initial_suspend() noexcept
     {
-        co_task_(handle);
+        return suspend_awalys {};
     }
-    void set_co_task(std::function<void(std::experimental::coroutine_handle<>)> task)
+    auto final_suspend() noexcept
     {
-        co_task_ = task;
+        return FinalAwaitable {};
+    }
+    TaskType get_return_object() noexcept
+    {
+        return TaskType { coroutine_handle<TaskPromise>::frome_promise(*this) };
+    }
+    void unhandled_exception() noexcept;
+    void caller_coroutine(coroutine_handle<> coroutine) noexcept
+    {
+        caller_ = coroutine;
+    }
+    coroutine_handle<> caller_coroutine() noexcept
+    {
+        return caller_;
     }
 
 private:
-    std::function<void(std::experimental::coroutine_handle<>)> co_task_;
+    coroutine_handle<> caller_;
+};
+
+} //namespace detail
+
+template <typename T = void>
+class Task {
+public:
+    using promise_type = TaskPromise<Task<T>>;
+
+    Task(coroutine_handle<promise_type> coroutine)
+        : coroutine_(coroutine)
+    {
+    }
+
+    auto operator co_await() const noexcept
+    {
+        return awaitable {coroutine_};
+    }
+
+private:
+    coroutine_handle<promise_simple> coroutine_;
 };
 
 } //namespace bco
