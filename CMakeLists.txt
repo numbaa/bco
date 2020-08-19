@@ -8,14 +8,11 @@ if(WIN32)
 add_compile_options(/await)
 set(PLAT_SPEC
     "include/bco/detail/proactor_windows.h"
-    "include/bco/detail/promise_windows.h"
-    "include/bco/detail/task_windows.h")
+    )
 else()
 add_compile_options(-fcoroutines)
 set(PLAT_SPEC
     "include/bco/detail/proactor_linux.h"
-    "include/bco/detail/promise_linux.h"
-    "include/bco/detail/task_linux.h"
     "src/proactor_windows.cpp")
 endif()
 
@@ -24,7 +21,7 @@ add_library(${PROJECT_NAME} STATIC
     "include/bco/bco.h"
     "include/bco/context.h"
     "include/bco/io.h"
-    "include/bco/promise.h"
+    
     "include/bco/task.h"
     "src/context.cpp"
     "src/io.cpp"

@@ -13,7 +13,7 @@ public:
     {
         return data_;
     }
-    void* length() const
+    size_t length() const
     {
         return length_;
     }

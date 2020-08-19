@@ -11,7 +11,7 @@ namespace bco {
 
 class Proactor {
 public:
-    Proactor(Context& executor);
+    Proactor(Context& context);
     int read(SOCKET s, Buffer buff, std::function<void(size_t length)>&& cb);
     int write(SOCKET s, Buffer buff, std::function<void(size_t length)>&& cb);
     int accept(SOCKET s, std::function<void()>&& cb);
