@@ -16,6 +16,7 @@ public:
     int write(SOCKET s, Buffer buff, std::function<void(size_t length)>&& cb);
     int accept(SOCKET s, std::function<void()>&& cb);
     bool connect(SOCKADDR_IN& addr, std::function<void()>&& cb);
+    std::vector<std::functor<void()>> drain();
 
 private:
     ::HANDLE complete_port_;

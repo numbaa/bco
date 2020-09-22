@@ -1,6 +1,10 @@
-#include <bco/detail/proactor_windows.h>
 #include <WinSock2.h>
 #include <MSWSock.h>
+#include <cstdint>
+#include <chrono>
+#include <vector>
+#include <functional>
+#include <bco/detail/proactor_windows.h>
 
 namespace bco {
 
@@ -111,6 +115,23 @@ bool Proactor::connect(SOCKADDR_IN& addr, std::function<void()>&& cb)
     }
     delete overlap_info;
     return false;
+}
+
+std::vector<std::functor<void()>> Poractor::drain(uint32_t timeout_ms)
+{
+    DWORD bytes;
+    LPOVERLAPPED overlapped;
+    ULONG_PTR completion_key;
+    DWORD remain_ms;
+    if (timeout_ms == std::numeric_limits<uint32_t>::max()) {
+        remain_ms = INFINITE;
+    } else {
+        remain_ms = timeout_ms;
+    }
+    std::chrono
+    while (::GetQueuedCompletionStatus(complete_port_, &bytes, &completion_key, &overlapped, remain_ms)) {
+        //handle io complete 
+    }
 }
 
 }

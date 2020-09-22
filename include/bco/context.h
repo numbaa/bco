@@ -7,7 +7,7 @@ namespace bco {
 
 class Context {
 public:
-    void post(std::function<void()> func);
+    void post(std::function<void()>&& func);
     void run();
 
 private:
