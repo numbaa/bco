@@ -8,6 +8,7 @@
 #include <experimental/coroutine>
 #include <functional>
 #include <memory>
+#include <optional>
 
 namespace bco {
 
@@ -142,5 +143,51 @@ public:
 private:
     coroutine_handle<promise_type> coroutine_;
 };
+
+//TODO: find another name more general
+template <typename T>
+class IoTask {
+public:
+    IoTask() = default;
+    void set_result(T&& val) noexcept { result_ = std::move(val); }
+    bool await_ready() const noexcept { return result_.has_value(); }
+    //this is caller's coroutine, what type it is?
+    coroutine_handle<> await_suspend(coroutine_handle<> coroutine) noexcept
+    {
+        caller_coroutine_ = coroutine;
+    }
+    T&& await_resume() noexcept
+    {
+        return std::move(result_.value_or(detail::default_value<T>());
+    }
+    void resume() { caller_coroutine_.resume(); }
+private:
+    std::optional<T> result_;
+    coroutine_handle<> caller_coroutine_;
+};
+
+template <>
+class IoTask<void> {
+public:
+    IoTask() = default;
+    void set_done(bool done) noexcept { done_ = done; }
+    bool await_ready() const noexcept { return done_; }
+    std::function<void()> continuation()
+    {
+        return [this]() { caller_coroutine_(); };
+    }
+    //this is caller's coroutine, what type it is?
+    coroutine_handle<> await_suspend(coroutine_handle<> coroutine) noexcept
+    {
+        caller_coroutine_ = coroutine;
+    }
+    void await_resume() noexcept {}
+    void resume() { caller_coroutine_.resume(); }
+
+private:
+    bool done_ = false;
+    coroutine_handle<> caller_coroutine_;
+};
+
 
 } //namespace bco

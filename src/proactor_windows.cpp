@@ -60,7 +60,7 @@ int Proactor::write(SOCKET s, Buffer buff, std::function<void(size_t length)>&& 
     return -1;
 }
 
-int Proactor::accept(SOCKET s, std::function<void()>&& cb)
+int Proactor::accept(SOCKET s, std::function<void(SOCKET s)>&& cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
     overlap_info->cb = std::move(cb);
@@ -117,7 +117,7 @@ bool Proactor::connect(SOCKADDR_IN& addr, std::function<void()>&& cb)
     return false;
 }
 
-std::vector<std::functor<void()>> Poractor::drain(uint32_t timeout_ms)
+std::vector<std::function<void()>> Poractor::drain(uint32_t timeout_ms)
 {
     DWORD bytes;
     LPOVERLAPPED overlapped;
@@ -128,10 +128,33 @@ std::vector<std::functor<void()>> Poractor::drain(uint32_t timeout_ms)
     } else {
         remain_ms = timeout_ms;
     }
-    std::chrono
-    while (::GetQueuedCompletionStatus(complete_port_, &bytes, &completion_key, &overlapped, remain_ms)) {
-        //handle io complete 
+    std::vector<std::function<void()>> cbs;
+    while (true) {
+        int ret = ::GetQueuedCompletionStatus(complete_port_, &bytes, &completion_key, &overlapped, remain_ms);
+        if (ret == 0 && overlapped == 0) {
+            auto err = ::GetLastError();
+            switch (err) {
+            case WAIT_TIMEOUT:
+                std::this_thread::yield();
+                break;
+            default:
+                break;
+            }
+        } else if (ret == 0 && overlappped != 0) {
+            auto err = ::GetLastError();
+            break;
+        } else if (ret != 0 && overlapped == 0) {
+            assert(false);
+        } else if (ret != 0 && overlapped != 0) {
+            //成功
+            OverlapInfo* overlap_info = reinterpret_cast<OverlapInfo*>(overlapped);
+            cbs.push_back(std::move(overlap_info->cb));
+            delete overlap_info;
+        } else {
+            assert(false);
+        }
     }
+    return std::move(cbs);
 }
 
 }

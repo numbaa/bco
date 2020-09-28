@@ -7,40 +7,47 @@ TcpSocket::TcpSocket(Proactor* proactor)
 {
 }
 
-Task<int> TcpSocket::read(std::shared_ptr<std::vector<uint8_t>> buffer)
+IoTask<int> TcpSocket::read(bco::Buffer buffer)
 {
-    Task<int> task;
-    task.set_co_task([task, buffer, this](bco::coroutine_handle<void> resume) mutable {
-        proactor_->read([task, resume, this](std::shared_ptr<std::vector<uint8_t>> buffer) mutable {
-            task.set_result(buffer->size());
-            resume();
-        });
+    IoTask<int> task;
+    int size = proactor_->read(socket_, buffer, [task](int length) mutable {
+        task.set_result(std::forward<int>(length));
+        task.resume();
     });
+    if (size > 0) {
+        task.set_result(std::forward<int>(size));
+    }
     return task;
 }
 
-Task<int> TcpSocket::write(std::shared_ptr<std::vector<uint8_t>> buffer)
+IoTask<int> TcpSocket::write(bco::Buffer buffer)
 {
-    Task<int> task;
-    task.set_co_task([task, this](bco::coroutine_handle<void> resume) mutable {
-        proactor_->read([task, resume, this](std::shared_ptr<std::vector<uint8_t>> buffer) mutable {
-            task.set_result(buffer->size());
-            resume();
-        });
+    IoTask<int> task;
+    int size = proactor_->write(socket_, buffer, [task](int length) mutable {
+        task.set_result(std::forward<int>(length));
+        task.resume();
     });
+    if (size > 0) {
+        task.set_result(std::forward<int>(size));
+    }
     return task;
 }
 
-Task<int> TcpSocket::accept()
+IoTask<TcpSocket> TcpSocket::accept()
 {
-    //应该是Task<TcpSocket>
-    Task<int> task;
-    task.set_co_task([task, this](bco::coroutine_handle<void> resume) mutable {
-        proactor_->accept([task, resume, this]() mutable {
-            task.set_result(0);
-            resume();
-        });
+    IoTask<TcpSocket> task;
+    int fd = proactor_->accept(socket_, [task](int fd) mutable {
+        //TODO: create socket from fd
+        TcpSocket s;
+        task.set_result(std::move(s));
+        task.resume();
     });
+    if (fd > 0) {
+        //TODO: create socket from fd
+        TcpSocket s;
+        task.set_result(std::move(s));
+    }
+    return task;
 }
 
 int TcpSocket::bind()

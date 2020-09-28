@@ -8,12 +8,13 @@ if(WIN32)
 add_compile_options(/await)
 set(PLAT_SPEC
     "include/bco/detail/proactor_windows.h"
+    "src/proactor_windows.cpp"
     )
 else()
 add_compile_options(-fcoroutines)
 set(PLAT_SPEC
     "include/bco/detail/proactor_linux.h"
-    "src/proactor_windows.cpp")
+    )
 endif()
 
 add_library(${PROJECT_NAME} STATIC
