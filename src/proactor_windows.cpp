@@ -5,6 +5,7 @@
 #include <vector>
 #include <functional>
 #include <bco/detail/proactor_windows.h>
+#include <bco/executor.h>
 
 namespace bco {
 
@@ -20,13 +21,13 @@ Proactor::Proactor(Executor& executor)
     this->complete_port_ = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 1);
 }
 
-int Proactor::read(SOCKET s, Buffer buff, std::function<void(size_t length)>&& cb)
+int Proactor::read(SOCKET s, Buffer buff, std::function<void(int length)>&& cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
     overlap_info->cb = std::move(cb);
     overlap_info->sock = s;
     ::SecureZeroMemory((PVOID)&overlap_info->overlapped, sizeof(WSAOVERLAPPED));
-    WSABUF wsabuf {buff.data(), buff.size()};
+    WSABUF wsabuf {buff.length(), static_cast<char*>(buff.data())};
     DWORD flags = 0;
     DWORD bytes_transferred;
     int ret = ::WSARecv(s, &wsabuf, 1, &bytes_transferred, &flags, &overlap_info->overlapped, nullptr);
@@ -40,16 +41,16 @@ int Proactor::read(SOCKET s, Buffer buff, std::function<void(size_t length)>&& c
     return -1;
 }
 
-int Proactor::write(SOCKET s, Buffer buff, std::function<void(size_t length)>&& cb)
+int Proactor::write(SOCKET s, Buffer buff, std::function<void(int length)>&& cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
     overlap_info->cb = std::move(cb);
     overlap_info->sock = s;
     ::SecureZeroMemory((PVOID)&overlap_info->overlapped, sizeof(WSAOVERLAPPED));
-    WSABUF wsabuf { buff.data(), buff.size() };
+    WSABUF wsabuf {buff.length(), static_cast<char*>(buff.data())};
     DWORD flags = 0;
     DWORD bytes_transferred;
-    int ret = ::WSASend(s, &wsabuf, 1, &bytes_transferred, flags, &verlap_info->overlapped, nullptr);
+    int ret = ::WSASend(s, &wsabuf, 1, &bytes_transferred, flags, &overlap_info->overlapped, nullptr);
     if (ret == 0) {
         delete overlap_info;
         return bytes_transferred;
@@ -71,7 +72,7 @@ int Proactor::accept(SOCKET s, std::function<void(SOCKET s)>&& cb)
     }
     ::SecureZeroMemory((PVOID)&overlap_info->overlapped, sizeof(WSAOVERLAPPED));
     DWORD bytes;
-    bool success = ::AcceptEx(s, overlap_info->sock, buff, 0, len, len, &bytes, overlap_info->overlapped);
+    bool success = ::AcceptEx(s, overlap_info->sock, buff, 0, len, len, &bytes, &overlap_info->overlapped);
     if (success) {
         SOCKET sock = overlap_info->sock;
         delete overlap_info;
@@ -109,7 +110,7 @@ bool Proactor::connect(SOCKADDR_IN& addr, std::function<void()>&& cb)
     }
     ::SecureZeroMemory((PVOID)&overlap_info->overlapped, sizeof(WSAOVERLAPPED));
     LPFN_CONNECTEX ConnectEx = GetConnectEx(overlap_info->sock);
-    bool success = ConnextEx(s, (SOCKADDR*)&addr, sizeof(addr), nullptr, 0, nullptr, &overlap_info->overlapped);
+    bool success = ConnectEx(s, (SOCKADDR*)&addr, sizeof(addr), nullptr, 0, nullptr, &overlap_info->overlapped);
     if (success) {
         return success;
     }
@@ -117,7 +118,7 @@ bool Proactor::connect(SOCKADDR_IN& addr, std::function<void()>&& cb)
     return false;
 }
 
-std::vector<std::function<void()>> Poractor::drain(uint32_t timeout_ms)
+std::vector<std::function<void()>> Proactor::drain(uint32_t timeout_ms)
 {
     DWORD bytes;
     LPOVERLAPPED overlapped;
