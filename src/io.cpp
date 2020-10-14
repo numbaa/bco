@@ -2,8 +2,8 @@
 
 namespace bco {
 
-TcpSocket::TcpSocket(Proactor* proactor)
-    : proactor_(proactor)
+TcpSocket::TcpSocket(Proactor* proactor, int fd)
+    : proactor_(proactor), socket_(fd)
 {
 }
 
@@ -36,15 +36,16 @@ IoTask<int> TcpSocket::write(bco::Buffer buffer)
 IoTask<TcpSocket> TcpSocket::accept()
 {
     IoTask<TcpSocket> task;
-    int fd = proactor_->accept(socket_, [task](int fd) mutable {
+    auto proactor = proactor_;
+    int fd = proactor_->accept(socket_, [task, proactor](int fd) mutable {
         //TODO: create socket from fd
-        TcpSocket s;
+        TcpSocket s{proactor, fd};
         task.set_result(std::move(s));
         task.resume();
     });
     if (fd > 0) {
         //TODO: create socket from fd
-        TcpSocket s;
+        TcpSocket s{proactor, fd};
         task.set_result(std::move(s));
     }
     return task;

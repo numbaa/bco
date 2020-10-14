@@ -177,7 +177,7 @@ public:
         return [this]() { caller_coroutine_(); };
     }
     //this is caller's coroutine, what type it is?
-    coroutine_handle<> await_suspend(coroutine_handle<> coroutine) noexcept
+    void await_suspend(coroutine_handle<void> coroutine) noexcept
     {
         caller_coroutine_ = coroutine;
     }
@@ -186,7 +186,7 @@ public:
 
 private:
     bool done_ = false;
-    coroutine_handle<> caller_coroutine_;
+    coroutine_handle<void> caller_coroutine_;
 };
 
 

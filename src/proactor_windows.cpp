@@ -3,16 +3,32 @@
 #include <cstdint>
 #include <chrono>
 #include <vector>
+#include <array>
 #include <functional>
 #include <bco/detail/proactor_windows.h>
 #include <bco/executor.h>
 
 namespace bco {
 
+constexpr size_t kAcceptBuffLen = sizeof(SOCKADDR_IN) * 2 + 32;
+
+enum class OverlapAction {
+    Unknown,
+    Receive,
+    Send,
+    Accept,
+};
+
 struct OverlapInfo {
     WSAOVERLAPPED overlapped;
+    OverlapAction action;
     SOCKET sock;
     std::function<void(size_t)> cb;
+};
+
+struct AcceptOverlapInfo : OverlapInfo {
+    SOCKET client_sock;
+    std::array<uint8_t, kAcceptBuffLen> buff;
 };
 
 Proactor::Proactor(Executor& executor)
@@ -63,7 +79,8 @@ int Proactor::write(SOCKET s, Buffer buff, std::function<void(int length)>&& cb)
 
 int Proactor::accept(SOCKET s, std::function<void(SOCKET s)>&& cb)
 {
-    OverlapInfo* overlap_info = new OverlapInfo;
+    AcceptOverlapInfo* overlap_info = new AcceptOverlapInfo;
+    overlap_info->action = OverlapAction::Accept;
     overlap_info->cb = std::move(cb);
     overlap_info->sock = ::WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, nullptr, 0, WSA_FLAG_OVERLAPPED);
     if (overlap_info->sock == INVALID_SOCKET) {
@@ -72,11 +89,12 @@ int Proactor::accept(SOCKET s, std::function<void(SOCKET s)>&& cb)
     }
     ::SecureZeroMemory((PVOID)&overlap_info->overlapped, sizeof(WSAOVERLAPPED));
     DWORD bytes;
-    bool success = ::AcceptEx(s, overlap_info->sock, buff, 0, len, len, &bytes, &overlap_info->overlapped);
+    bool success = ::AcceptEx(s, overlap_info->sock, overlap_info->buff.data(), 0, sizeof(SOCKADDR_IN) + 16, sizeof(SOCKADDR_IN) + 16, &bytes, &overlap_info->overlapped);
     if (success) {
         SOCKET sock = overlap_info->sock;
         delete overlap_info;
-        if (CreateIoCompletionPort(sock, complete_port_, nullptr, 0) == complete_port_)
+        //不让用nullptr...
+        if (CreateIoCompletionPort((HANDLE)sock, complete_port_, NULL, 0) == complete_port_)
             return sock;
         else
             return -1;
@@ -99,7 +117,7 @@ LPFN_CONNECTEX GetConnectEx(SOCKET so)
     return fnConnectEx;
 }
 
-bool Proactor::connect(SOCKADDR_IN& addr, std::function<void()>&& cb)
+bool Proactor::connect(SOCKADDR_IN& addr, std::function<void(SOCKET)>&& cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
     overlap_info->cb = std::move(cb);
