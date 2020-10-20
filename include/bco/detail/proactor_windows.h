@@ -12,7 +12,7 @@ namespace bco {
 
 class Proactor {
 public:
-    Proactor(Executor& context);
+    Proactor();
     int read(SOCKET s, Buffer buff, std::function<void(int length)>&& cb);
     int write(SOCKET s, Buffer buff, std::function<void(int length)>&& cb);
     int accept(SOCKET s, std::function<void(SOCKET s)>&& cb);
@@ -20,8 +20,10 @@ public:
     std::vector<std::function<void()>> drain(uint32_t timeout_ms);
 
 private:
+    void set_executor(Executor* executor);
+
+private:
     ::HANDLE complete_port_;
-    Executor& executor_;
 };
 
 }

@@ -31,8 +31,7 @@ struct AcceptOverlapInfo : OverlapInfo {
     std::array<uint8_t, kAcceptBuffLen> buff;
 };
 
-Proactor::Proactor(Executor& executor)
-    : executor_(executor)
+Proactor::Proactor()
 {
     this->complete_port_ = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 1);
 }

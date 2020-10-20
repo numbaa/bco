@@ -22,12 +22,14 @@ add_library(${PROJECT_NAME} STATIC
     "include/bco/bco.h"
     "include/bco/executor.h"
     "include/bco/io.h"
-    
+    "include/bco/context.h"
+    "include/bco/buffer.h"
     "include/bco/task.h"
     "src/executor.cpp"
     "src/io.cpp"
     "src/task.cpp"
- "include/bco/buffer.h")
+    "src/context.cpp"
+ )
 
 target_include_directories(${PROJECT_NAME}
     PUBLIC

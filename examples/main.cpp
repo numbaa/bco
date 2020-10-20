@@ -1,10 +1,47 @@
+#include <array>
 #include <bco/bco.h>
+
+class EchoServer {
+public:
+    EchoServer(bco::Context* ctx, uint32_t port)
+        : ctx_(ctx), listen_port_(port)
+    {
+        start();
+    }
+
+private:
+    void start()
+    {
+        ctx_->spawn([this]() -> bco::Task<> {
+            // bco::TcpSocket::TcpSocket(Context);
+            bco::TcpSocket socket{ctx_->proactor()};
+            socket.bind();
+            while (true) {
+                bco::TcpSocket cli_sock = co_await socket.accept();
+                ctx_->spawn(std::bind(&EchoServer::serve, this, cli_sock));
+            }
+        });
+    }
+    bco::Task<> serve(bco::TcpSocket sock)
+    {
+        std::array<uint8_t, 1024> data;
+        while (true) {
+            bco::Buffer buffer{data.data(), data.size()};
+            auto bytes_received = co_await sock.read(buffer);
+            auto bytes_sent = co_await sock.write(buffer);
+        }
+    }
+private:
+    bco::Context* ctx_;
+    uint16_t listen_port_;
+};
 
 int main()
 {
-    bco::Executor executor {};
-    executor.post([]() {
-        //
-    });
-    executor.run();
+    bco::Context ctx;
+    ctx.set_executor(bco::Executor{});
+    ctx.set_proactor(bco::Proactor{});
+    EchoServer server{&ctx, 30000};
+    ctx.loop();
+    return 0;
 }
