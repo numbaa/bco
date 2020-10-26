@@ -5,6 +5,7 @@ project(bco)
 set(CMAKE_CXX_STANDARD 20)
 
 if(WIN32)
+add_definitions(-DNOMINMAX)
 add_compile_options(/await)
 set(PLAT_SPEC
     "include/bco/detail/proactor_windows.h"

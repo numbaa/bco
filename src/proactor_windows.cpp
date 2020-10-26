@@ -1,5 +1,6 @@
 #include <WinSock2.h>
 #include <MSWSock.h>
+#include <cassert>
 #include <cstdint>
 #include <chrono>
 #include <vector>
@@ -127,7 +128,7 @@ bool Proactor::connect(SOCKADDR_IN& addr, std::function<void(SOCKET)>&& cb)
     }
     ::SecureZeroMemory((PVOID)&overlap_info->overlapped, sizeof(WSAOVERLAPPED));
     LPFN_CONNECTEX ConnectEx = GetConnectEx(overlap_info->sock);
-    bool success = ConnectEx(s, (SOCKADDR*)&addr, sizeof(addr), nullptr, 0, nullptr, &overlap_info->overlapped);
+    bool success = ConnectEx(overlap_info->sock, (SOCKADDR*)&addr, sizeof(addr), nullptr, 0, nullptr, &overlap_info->overlapped);
     if (success) {
         return success;
     }
@@ -135,7 +136,7 @@ bool Proactor::connect(SOCKADDR_IN& addr, std::function<void(SOCKET)>&& cb)
     return false;
 }
 
-std::vector<std::function<void()>> Proactor::drain(uint32_t timeout_ms)
+std::vector<std::function<void(SOCKET s)>> Proactor::drain(uint32_t timeout_ms)
 {
     DWORD bytes;
     LPOVERLAPPED overlapped;
@@ -146,7 +147,7 @@ std::vector<std::function<void()>> Proactor::drain(uint32_t timeout_ms)
     } else {
         remain_ms = timeout_ms;
     }
-    std::vector<std::function<void()>> cbs;
+    std::vector<std::function<void(SOCKET s)>> cbs;
     while (true) {
         int ret = ::GetQueuedCompletionStatus(complete_port_, &bytes, &completion_key, &overlapped, remain_ms);
         if (ret == 0 && overlapped == 0) {
@@ -158,14 +159,24 @@ std::vector<std::function<void()>> Proactor::drain(uint32_t timeout_ms)
             default:
                 break;
             }
-        } else if (ret == 0 && overlappped != 0) {
+        } else if (ret == 0 && overlapped != 0) {
             auto err = ::GetLastError();
             break;
         } else if (ret != 0 && overlapped == 0) {
             assert(false);
         } else if (ret != 0 && overlapped != 0) {
-            //成功
             OverlapInfo* overlap_info = reinterpret_cast<OverlapInfo*>(overlapped);
+            //TODO:
+            switch (overlap_info->action) {
+            case OverlapAction::Accept:
+                break;
+            case OverlapAction::Receive:
+                break;
+            case OverlapAction::Send:
+                break;
+            case OverlapAction::Unknown:
+                break;
+            }
             cbs.push_back(std::move(overlap_info->cb));
             delete overlap_info;
         } else {

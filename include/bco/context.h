@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "executor.h"
 #include "proactor.h"
+#include "task.h"
 
 namespace bco
 {
