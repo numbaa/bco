@@ -190,4 +190,31 @@ private:
 };
 
 
+//TODO:
+template <typename T>
+class CtxTask {
+public:
+    using promise_type = detail::TaskPromise<CtxTask<T>>;
+
+    Task(coroutine_handle<promise_type> coroutine)
+        : coroutine_(coroutine)
+    {
+    }
+
+    void set_executor(Executor& executor)
+    {
+        executor_ = executor;
+    }
+
+    auto operator co_await() const noexcept
+    {
+        return detail::Awaitable { coroutine_ };
+    }
+
+private:
+    coroutine_handle<promise_type> coroutine_;
+    Executor* executor_;
+};
+
+
 } //namespace bco

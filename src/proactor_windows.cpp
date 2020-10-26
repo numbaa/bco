@@ -23,8 +23,8 @@ enum class OverlapAction {
 struct OverlapInfo {
     WSAOVERLAPPED overlapped;
     OverlapAction action;
-    SOCKET sock;
-    std::function<void(size_t)> cb;
+    int sock;
+    std::function<void(int)> cb;
 };
 
 struct AcceptOverlapInfo : OverlapInfo {
@@ -32,12 +32,35 @@ struct AcceptOverlapInfo : OverlapInfo {
     std::array<uint8_t, kAcceptBuffLen> buff;
 };
 
+static void overlap_handler(WSAOVERLAPPED* overlapped, std::vector<std::function<void(int,int)>>& cbs)
+{
+    OverlapInfo* overlap_info = reinterpret_cast<OverlapInfo*>(overlapped);
+    //TODO:
+    switch (overlap_info->action) {
+    case OverlapAction::Accept: {
+        AcceptOverlapInfo* accept_info = reinterpret_cast<AcceptOverlapInfo*>(overlapped);
+        //accept_info
+        //cbs.push_back([]())
+        delete accept_info;
+        break;
+    }
+    case OverlapAction::Receive:
+        delete overlap_info;
+        break;
+    case OverlapAction::Send:
+        delete overlap_info;
+        break;
+    default:
+        assert(false);
+    }
+}
+
 Proactor::Proactor()
 {
     this->complete_port_ = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 1);
 }
 
-int Proactor::read(SOCKET s, Buffer buff, std::function<void(int length)>&& cb)
+int Proactor::read(int s, Buffer buff, std::function<void(int length)>&& cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
     overlap_info->cb = std::move(cb);
@@ -57,7 +80,7 @@ int Proactor::read(SOCKET s, Buffer buff, std::function<void(int length)>&& cb)
     return -1;
 }
 
-int Proactor::write(SOCKET s, Buffer buff, std::function<void(int length)>&& cb)
+int Proactor::write(int s, Buffer buff, std::function<void(int length)>&& cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
     overlap_info->cb = std::move(cb);
@@ -77,7 +100,7 @@ int Proactor::write(SOCKET s, Buffer buff, std::function<void(int length)>&& cb)
     return -1;
 }
 
-int Proactor::accept(SOCKET s, std::function<void(SOCKET s)>&& cb)
+int Proactor::accept(int s, std::function<void(int s)>&& cb)
 {
     AcceptOverlapInfo* overlap_info = new AcceptOverlapInfo;
     overlap_info->action = OverlapAction::Accept;
@@ -117,7 +140,7 @@ LPFN_CONNECTEX GetConnectEx(SOCKET so)
     return fnConnectEx;
 }
 
-bool Proactor::connect(SOCKADDR_IN& addr, std::function<void(SOCKET)>&& cb)
+bool Proactor::connect(sockaddr_in addr, std::function<void(int)>&& cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
     overlap_info->cb = std::move(cb);
@@ -136,7 +159,7 @@ bool Proactor::connect(SOCKADDR_IN& addr, std::function<void(SOCKET)>&& cb)
     return false;
 }
 
-std::vector<std::function<void(SOCKET s)>> Proactor::drain(uint32_t timeout_ms)
+std::vector<std::function<void(int/*error*/, int/*socket*/)>> Proactor::drain(uint32_t timeout_ms)
 {
     DWORD bytes;
     LPOVERLAPPED overlapped;
@@ -147,7 +170,7 @@ std::vector<std::function<void(SOCKET s)>> Proactor::drain(uint32_t timeout_ms)
     } else {
         remain_ms = timeout_ms;
     }
-    std::vector<std::function<void(SOCKET s)>> cbs;
+    std::vector<std::function<void(int,int)>> cbs;
     while (true) {
         int ret = ::GetQueuedCompletionStatus(complete_port_, &bytes, &completion_key, &overlapped, remain_ms);
         if (ret == 0 && overlapped == 0) {
@@ -165,20 +188,8 @@ std::vector<std::function<void(SOCKET s)>> Proactor::drain(uint32_t timeout_ms)
         } else if (ret != 0 && overlapped == 0) {
             assert(false);
         } else if (ret != 0 && overlapped != 0) {
-            OverlapInfo* overlap_info = reinterpret_cast<OverlapInfo*>(overlapped);
-            //TODO:
-            switch (overlap_info->action) {
-            case OverlapAction::Accept:
-                break;
-            case OverlapAction::Receive:
-                break;
-            case OverlapAction::Send:
-                break;
-            case OverlapAction::Unknown:
-                break;
-            }
-            cbs.push_back(std::move(overlap_info->cb));
-            delete overlap_info;
+            overlap_handler(overlapped, cbs);
+            break;
         } else {
             assert(false);
         }

@@ -5,9 +5,9 @@ namespace bco {
 void Context::loop()
 {}
 
-void Context::spawn(std::function<Task<>()> corotine)
+void Context::spawn(std::function<CtxTask<>()>&& coroutine)
 {
-    //
+    spawn_aux(std::move(coroutine));
 }
 
 void Context::set_executor(Executor&& executor)
@@ -28,6 +28,13 @@ Executor* Context::executor()
 Proactor* Context::proactor()
 {
     return &proactor_;
+}
+
+Task<> Context::spawn_aux(std::function<CtxTask<>()>&& coroutine)
+{
+    auto task = coroutine();
+    task.set_executor(&executor_);
+    co_await task;
 }
 
 } // namespace bco
