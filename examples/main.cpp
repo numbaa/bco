@@ -27,8 +27,8 @@ private:
         std::array<uint8_t, 1024> data;
         while (true) {
             bco::Buffer buffer{data.data(), data.size()};
-            auto bytes_received = co_await sock.read(buffer);
-            auto bytes_sent = co_await sock.write(buffer);
+            int bytes_received = co_await sock.read(buffer);
+            int bytes_sent = co_await sock.write(buffer);
         }
     }
 private:

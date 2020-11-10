@@ -1,13 +1,14 @@
 ﻿#include <bco/context.h>
+#include <bco/task.h>
 
 namespace bco {
 
 void Context::loop()
 {}
 
-void Context::spawn(std::function<CtxTask<>()>&& coroutine)
+void Context::spawn(std::function<Task<>()>&& coroutine)
 {
-    spawn_aux(std::move(coroutine));
+    executor_.post(std::bind(&Context::spawn_aux, this, std::move(coroutine)));
 }
 
 void Context::set_executor(Executor&& executor)
@@ -30,11 +31,9 @@ Proactor* Context::proactor()
     return &proactor_;
 }
 
-Task<> Context::spawn_aux(std::function<CtxTask<>()>&& coroutine)
+Task<> Context::spawn_aux(std::function<Task<>()>&& coroutine)
 {
-    auto task = coroutine();
-    task.set_executor(&executor_);
-    co_await task;
+    co_await coroutine();
 }
 
 } // namespace bco

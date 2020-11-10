@@ -12,9 +12,9 @@ class TcpSocket {
 public:
     TcpSocket(Proactor* proactor, int fd = -1);
     //TODO: should return customized awaitable, not just Task<>
-    [[nodiscard]] IoTask<int> read(bco::Buffer buffer);
-    [[nodiscard]] IoTask<int> write(bco::Buffer buffer);
-    [[nodiscard]] IoTask<TcpSocket> accept();
+    [[nodiscard]] ProactorTask<int> read(bco::Buffer buffer);
+    [[nodiscard]] ProactorTask<int> write(bco::Buffer buffer);
+    [[nodiscard]] ProactorTask<TcpSocket> accept();
     int bind();
 
 private:

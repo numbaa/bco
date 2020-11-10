@@ -5,10 +5,9 @@
 #include <vector>
 #include <Windows.h>
 
-#include <bco/buffer.h>
-#include <bco/executor.h>
-
 namespace bco {
+class Executor;
+class Buffer;
 
 class Proactor {
 public:

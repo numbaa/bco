@@ -8,6 +8,7 @@
 #include <functional>
 #include <bco/detail/proactor_windows.h>
 #include <bco/executor.h>
+#include <bco/buffer.h>
 
 namespace bco {
 
