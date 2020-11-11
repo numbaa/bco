@@ -8,7 +8,7 @@ TcpSocket::TcpSocket(Proactor* proactor, int fd)
 {
 }
 
-ProactorTask<int> TcpSocket::read(bco::Buffer buffer)
+ProactorTask<int> TcpSocket::read(Buffer buffer)
 {
     ProactorTask<int> task;
     int size = proactor_->read(socket_, buffer, [task](int length) mutable {
@@ -21,7 +21,7 @@ ProactorTask<int> TcpSocket::read(bco::Buffer buffer)
     return task;
 }
 
-ProactorTask<int> TcpSocket::write(bco::Buffer buffer)
+ProactorTask<int> TcpSocket::write(Buffer buffer)
 {
     ProactorTask<int> task;
     int size = proactor_->write(socket_, buffer, [task](int length) mutable {

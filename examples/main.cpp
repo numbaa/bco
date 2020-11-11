@@ -39,8 +39,8 @@ private:
 int main()
 {
     bco::Context ctx;
-    ctx.set_executor(bco::Executor{});
-    ctx.set_proactor(bco::Proactor{});
+    ctx.set_executor(std::make_unique<bco::Executor>());
+    ctx.set_proactor(std::make_unique<bco::Proactor>());
     EchoServer server{&ctx, 30000};
     ctx.loop();
     return 0;

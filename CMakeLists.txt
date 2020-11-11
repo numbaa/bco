@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 if(WIN32)
 add_definitions(-DNOMINMAX)
-add_compile_options(/await)
+#add_compile_options(/await)
 set(PLAT_SPEC
     "include/bco/detail/proactor_windows.h"
     "src/proactor_windows.cpp"
@@ -20,6 +20,8 @@ endif()
 
 add_library(${PROJECT_NAME} STATIC
     ${PLAT_SPEC}
+    "include/bco/detail/utils.inl"
+    "include/bco/detail/task.inl"
     "include/bco/bco.h"
     "include/bco/executor.h"
     "include/bco/io.h"
@@ -31,6 +33,14 @@ add_library(${PROJECT_NAME} STATIC
     "src/task.cpp"
     "src/context.cpp"
  )
+
+ if(WIN32)
+ target_link_libraries(${PROJECT_NAME}
+    "ws2_32.lib"
+    "mswsock.lib"
+ )
+ else()
+ endif()
 
 target_include_directories(${PROJECT_NAME}
     PUBLIC

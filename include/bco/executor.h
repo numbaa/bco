@@ -7,14 +7,14 @@ namespace bco {
 
 class Executor {
 public:
-    Executor();
-    Executor(Executor&&);
-    Executor& operator=(Executor&&);
+    Executor() = default;
+    Executor(Executor&&) = delete;
+    Executor& operator=(Executor&&) = delete;
+    Executor(Executor&) = delete;
+    Executor& operator=(Executor&) = delete;
     void post(std::function<void()>&& func);
     void run();
 private:
-    Executor(Executor&);
-    Executor& operator=(Executor&);
 
 private:
     std::deque<std::function<void()>> tasks_;

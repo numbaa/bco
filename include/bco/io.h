@@ -12,8 +12,8 @@ class TcpSocket {
 public:
     TcpSocket(Proactor* proactor, int fd = -1);
     //TODO: should return customized awaitable, not just Task<>
-    [[nodiscard]] ProactorTask<int> read(bco::Buffer buffer);
-    [[nodiscard]] ProactorTask<int> write(bco::Buffer buffer);
+    [[nodiscard]] ProactorTask<int> read(Buffer buffer);
+    [[nodiscard]] ProactorTask<int> write(Buffer buffer);
     [[nodiscard]] ProactorTask<TcpSocket> accept();
     int bind();
 
@@ -21,5 +21,11 @@ private:
     Proactor* proactor_;
     int socket_;
 };
+
+template <>
+inline TcpSocket detail::default_value<TcpSocket>()
+{
+    return TcpSocket {nullptr, -1};
+}
 
 }
