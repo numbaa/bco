@@ -1,4 +1,5 @@
 #include <bco/executor.h>
+#include <bco/context.h>
 #include <chrono>
 #include <thread>
 
@@ -10,20 +11,29 @@ void Executor::post(std::function<void()>&& func)
     tasks_.push_back(func);
 }
 
+void Executor::set_context(Context* ctx)
+{
+    context_ = ctx;
+}
+
 void Executor::run()
 {
     while (true) {
         mutex_.lock();
         auto old_tasks = std::move(tasks_);
         mutex_.unlock();
-        if (old_tasks.empty()) {
-            std::this_thread::yield();
+        auto proactor_tasks = context_->get_proactor_tasks();
+        if (old_tasks.empty() && proactor_tasks.empty()) {
+            //std::this_thread::yield();
+            std::this_thread::sleep_for(std::chrono::milliseconds { 2 });
             continue;
         }
         for (auto&& task : old_tasks) {
             task();
         }
-        //TODO: executor drain
+        for (auto&& task : proactor_tasks) {
+            task();
+        }
     }
 }
 

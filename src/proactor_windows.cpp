@@ -19,6 +19,7 @@ enum class OverlapAction {
     Receive,
     Send,
     Accept,
+    Connect,
 };
 
 struct OverlapInfo {
@@ -33,22 +34,19 @@ struct AcceptOverlapInfo : OverlapInfo {
     std::array<uint8_t, kAcceptBuffLen> buff;
 };
 
-static void overlap_handler(WSAOVERLAPPED* overlapped, std::vector<std::function<void(int,int)>>& cbs)
+static void handle_overlap_success(WSAOVERLAPPED* overlapped, int bytes, std::vector<std::function<void()>>& cbs)
 {
     OverlapInfo* overlap_info = reinterpret_cast<OverlapInfo*>(overlapped);
-    //TODO:
     switch (overlap_info->action) {
     case OverlapAction::Accept: {
         AcceptOverlapInfo* accept_info = reinterpret_cast<AcceptOverlapInfo*>(overlapped);
-        //accept_info
-        //cbs.push_back([]())
+        cbs.push_back(std::bind(overlap_info->cb, overlap_info->sock));
         delete accept_info;
         break;
     }
     case OverlapAction::Receive:
-        delete overlap_info;
-        break;
     case OverlapAction::Send:
+        cbs.push_back(std::bind(overlap_info->cb, bytes));
         delete overlap_info;
         break;
     default:
@@ -64,6 +62,7 @@ Proactor::Proactor()
 int Proactor::read(int s, Buffer buff, std::function<void(int length)>&& cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
+    overlap_info->action = OverlapAction::Receive;
     overlap_info->cb = std::move(cb);
     overlap_info->sock = s;
     ::SecureZeroMemory((PVOID)&overlap_info->overlapped, sizeof(WSAOVERLAPPED));
@@ -84,6 +83,7 @@ int Proactor::read(int s, Buffer buff, std::function<void(int length)>&& cb)
 int Proactor::write(int s, Buffer buff, std::function<void(int length)>&& cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
+    overlap_info->action = OverlapAction::Send;
     overlap_info->cb = std::move(cb);
     overlap_info->sock = s;
     ::SecureZeroMemory((PVOID)&overlap_info->overlapped, sizeof(WSAOVERLAPPED));
@@ -144,6 +144,7 @@ LPFN_CONNECTEX GetConnectEx(SOCKET so)
 bool Proactor::connect(sockaddr_in addr, std::function<void(int)>&& cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
+    overlap_info->action = OverlapAction::Connect;
     overlap_info->cb = std::move(cb);
     overlap_info->sock = ::WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, nullptr, 0, WSA_FLAG_OVERLAPPED);
     if (overlap_info->sock == INVALID_SOCKET) {
@@ -151,8 +152,9 @@ bool Proactor::connect(sockaddr_in addr, std::function<void(int)>&& cb)
         return -1;
     }
     ::SecureZeroMemory((PVOID)&overlap_info->overlapped, sizeof(WSAOVERLAPPED));
+    DWORD bytes_sent;
     LPFN_CONNECTEX ConnectEx = GetConnectEx(overlap_info->sock);
-    bool success = ConnectEx(overlap_info->sock, (SOCKADDR*)&addr, sizeof(addr), nullptr, 0, nullptr, &overlap_info->overlapped);
+    bool success = ConnectEx(overlap_info->sock, (SOCKADDR*)&addr, sizeof(addr), nullptr, 0, &bytes_sent, &overlap_info->overlapped);
     if (success) {
         return success;
     }
@@ -160,7 +162,7 @@ bool Proactor::connect(sockaddr_in addr, std::function<void(int)>&& cb)
     return false;
 }
 
-std::vector<std::function<void(int/*error*/, int/*socket*/)>> Proactor::drain(uint32_t timeout_ms)
+std::vector<std::function<void()>> Proactor::drain(uint32_t timeout_ms)
 {
     DWORD bytes;
     LPOVERLAPPED overlapped;
@@ -171,8 +173,9 @@ std::vector<std::function<void(int/*error*/, int/*socket*/)>> Proactor::drain(ui
     } else {
         remain_ms = timeout_ms;
     }
-    std::vector<std::function<void(int,int)>> cbs;
+    std::vector<std::function<void()>> cbs;
     while (true) {
+        auto start_time = std::chrono::high_resolution_clock().now();
         int ret = ::GetQueuedCompletionStatus(complete_port_, &bytes, &completion_key, &overlapped, remain_ms);
         if (ret == 0 && overlapped == 0) {
             auto err = ::GetLastError();
@@ -189,11 +192,16 @@ std::vector<std::function<void(int/*error*/, int/*socket*/)>> Proactor::drain(ui
         } else if (ret != 0 && overlapped == 0) {
             assert(false);
         } else if (ret != 0 && overlapped != 0) {
-            overlap_handler(overlapped, cbs);
+            handle_overlap_success(overlapped, bytes, cbs);
             break;
         } else {
             assert(false);
         }
+        auto end_time = std::chrono::high_resolution_clock().now();
+        auto used_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+        timeout_ms -= used_ms;
+        if (timeout_ms <= 0)
+            break;
     }
     return std::move(cbs);
 }

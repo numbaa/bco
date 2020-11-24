@@ -15,7 +15,8 @@ public:
     [[nodiscard]] ProactorTask<int> read(Buffer buffer);
     [[nodiscard]] ProactorTask<int> write(Buffer buffer);
     [[nodiscard]] ProactorTask<TcpSocket> accept();
-    int bind();
+    int listen();
+    int bind(sockaddr_in addr);
 
 private:
     Proactor* proactor_;

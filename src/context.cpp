@@ -4,7 +4,9 @@
 namespace bco {
 
 void Context::loop()
-{}
+{
+    executor_->run();
+}
 
 void Context::spawn(std::function<Task<>()> coroutine)
 {
@@ -14,6 +16,8 @@ void Context::spawn(std::function<Task<>()> coroutine)
 void Context::set_executor(std::unique_ptr<Executor>&& executor)
 {
     executor_ = std::move(executor);
+    //FIXME: 
+    executor_->set_context(this);
 }
 
 void Context::set_proactor(std::unique_ptr<Proactor>&& proactor)
@@ -29,6 +33,11 @@ Executor* Context::executor()
 Proactor* Context::proactor()
 {
     return proactor_.get();
+}
+
+std::vector<std::function<void()>> Context::get_proactor_tasks()
+{
+    return proactor_->drain(0);
 }
 
 void Context::spawn_aux1(std::function<Task<>()> coroutine)

@@ -16,12 +16,14 @@ public:
     Executor* executor();
     Proactor* proactor();
 private:
+    std::vector<std::function<void()>> get_proactor_tasks();
     void spawn_aux1(std::function<Task<>()> cooutine);
     Task<> spawn_aux2(std::function<Task<>()> cooutine);
 
 private:
     std::unique_ptr<Executor> executor_;
     std::unique_ptr<Proactor> proactor_;
+    friend class Executor;
 };
 
 } // namespace bco

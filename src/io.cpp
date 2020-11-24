@@ -50,9 +50,14 @@ ProactorTask<TcpSocket> TcpSocket::accept()
     return task;
 }
 
-int TcpSocket::bind()
+int TcpSocket::bind(sockaddr_in addr)
 {
-    return 0;
+    return ::bind(socket_, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr_in));
+}
+
+int TcpSocket::listen()
+{
+    return ::listen(socket_, 5);
 }
 
 } // namespace bco
