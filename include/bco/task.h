@@ -30,48 +30,87 @@ private:
     friend class promise_type;
 };
 
+class RootTask : public std::suspend_never {
+public:
+    class promise_type {
+    public:
+        RootTask get_return_object()
+        {
+            return RootTask {};
+        }
+        std::suspend_never initial_suspend()
+        {
+            return {};
+        }
+        std::suspend_never final_suspend()
+        {
+            return {};
+        }
+        void unhandled_exception()
+        {
+        }
+        void return_void()
+        {
+        }
+    };
+};
+
 template <typename T>
 class ProactorTask {
+    struct SharedContext {
+        std::optional<T> result_;
+        std::coroutine_handle<> caller_coroutine_;
+    };
+
 public:
-    ProactorTask() = default;
-    void set_result(T&& val) noexcept { result_ = std::move(val); }
-    bool await_ready() const noexcept { return result_.has_value(); }
+    ProactorTask()
+        : ctx_(new SharedContext)
+    {
+    }
+    void set_result(T&& val) noexcept { ctx_->result_ = std::move(val); }
+    bool await_ready() const noexcept { return ctx_->result_.has_value(); }
     void await_suspend(std::coroutine_handle<> coroutine) noexcept
     {
-        caller_coroutine_ = coroutine;
+        ctx_->caller_coroutine_ = coroutine;
     }
     T await_resume() noexcept
     {
         //return std::move(result_.value_or(detail::default_value<T>());
-        return result_.value_or(detail::default_value<T>());
+        return ctx_->result_.value_or(detail::default_value<T>());
     }
-    void resume() { caller_coroutine_.resume(); }
+    void resume() { ctx_->caller_coroutine_.resume(); }
 
 private:
-    std::optional<T> result_;
-    std::coroutine_handle<> caller_coroutine_;
+    std::shared_ptr<SharedContext> ctx_;
 };
 
 template <>
 class ProactorTask<void> {
+    struct SharedContext {
+        bool done_ = false;
+        std::coroutine_handle<> caller_coroutine_;
+    };
+
 public:
-    ProactorTask() = default;
-    void set_done(bool done) noexcept { done_ = done; }
-    bool await_ready() const noexcept { return done_; }
+    ProactorTask()
+        : ctx_(new SharedContext)
+    {
+    }
+    void set_done(bool done) noexcept { ctx_->done_ = done; }
+    bool await_ready() const noexcept { return ctx_->done_; }
     std::function<void()> continuation()
     {
-        return [this]() { caller_coroutine_(); };
+        return [this]() { ctx_->caller_coroutine_(); };
     }
     void await_suspend(std::coroutine_handle<> coroutine) noexcept
     {
-        caller_coroutine_ = coroutine;
+        ctx_->caller_coroutine_ = coroutine;
     }
     void await_resume() noexcept { }
-    void resume() { caller_coroutine_.resume(); }
+    void resume() { ctx_->caller_coroutine_.resume(); }
 
 private:
-    bool done_ = false;
-    std::coroutine_handle<> caller_coroutine_;
+    std::shared_ptr<SharedContext> ctx_;
 };
 
 

@@ -17,6 +17,7 @@ public:
     int accept(int s, std::function<void(int s)>&& cb);
     bool connect(sockaddr_in addr, std::function<void(int)>&& cb);
     std::vector<std::function<void()>> drain(uint32_t timeout_ms);
+    void attach(int fd);
 
 private:
     void set_executor(Executor* executor);

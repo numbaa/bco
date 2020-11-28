@@ -10,8 +10,8 @@ class Proactor;
 
 class TcpSocket {
 public:
+    static std::tuple<TcpSocket, int> create(Proactor* proactor);
     TcpSocket(Proactor* proactor, int fd = -1);
-    //TODO: should return customized awaitable, not just Task<>
     [[nodiscard]] ProactorTask<int> read(Buffer buffer);
     [[nodiscard]] ProactorTask<int> write(Buffer buffer);
     [[nodiscard]] ProactorTask<TcpSocket> accept();

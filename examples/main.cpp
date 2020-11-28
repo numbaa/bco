@@ -14,9 +14,13 @@ public:
 private:
     void start()
     {
-        ctx_->spawn([this]() -> bco::Task<> {
+        ctx_->spawn(std::move([this]() -> bco::Task<> {
             // bco::TcpSocket::TcpSocket(Context);
-            bco::TcpSocket socket{ctx_->proactor()};
+            auto [socket, error] = bco::TcpSocket::create(ctx_->proactor());
+            if (error < 0) {
+                std::cerr << "Create socket failed with " << error << std::endl;
+                co_return;
+            }
             sockaddr_in server_addr;
             ::memset(&server_addr, 0, sizeof(server_addr));
             server_addr.sin_family = AF_INET;
@@ -31,10 +35,11 @@ private:
                 std::cerr << "listen: " << ret << std::endl;
             }
             while (true) {
+                auto xthis = this;
                 bco::TcpSocket cli_sock = co_await socket.accept();
-                ctx_->spawn(std::bind(&EchoServer::serve, this, cli_sock));
+                xthis->ctx_->spawn(std::bind(&EchoServer::serve, xthis, cli_sock));
             }
-        });
+        }));
     }
     bco::Task<> serve(bco::TcpSocket sock)
     {
@@ -43,7 +48,7 @@ private:
             bco::Buffer buffer{data.data(), data.size()};
             int bytes_received = co_await sock.read(buffer);
             std::cout << "Received: " << std::string((char*)buffer.data(), bytes_received);
-            int bytes_sent = co_await sock.write(buffer);
+            int bytes_sent = co_await sock.write(bco::Buffer { buffer.data(), static_cast<size_t>(bytes_received) });
         }
     }
 private:

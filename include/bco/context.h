@@ -10,7 +10,7 @@ class Context {
 public:
     Context() = default;
     void loop();
-    void spawn(std::function<Task<>()> coroutine);
+    void spawn(std::function<Task<>()>&& coroutine);
     void set_executor(std::unique_ptr<Executor>&& executor);
     void set_proactor(std::unique_ptr<Proactor>&& proactor);
     Executor* executor();
@@ -18,7 +18,7 @@ public:
 private:
     std::vector<std::function<void()>> get_proactor_tasks();
     void spawn_aux1(std::function<Task<>()> cooutine);
-    Task<> spawn_aux2(std::function<Task<>()> cooutine);
+    RootTask spawn_aux2(std::function<Task<>()>&& cooutine);
 
 private:
     std::unique_ptr<Executor> executor_;

@@ -8,7 +8,7 @@ void Context::loop()
     executor_->run();
 }
 
-void Context::spawn(std::function<Task<>()> coroutine)
+void Context::spawn(std::function<Task<>()>&& coroutine)
 {
     executor_->post(std::bind(&Context::spawn_aux1, this, coroutine));
 }
@@ -42,10 +42,10 @@ std::vector<std::function<void()>> Context::get_proactor_tasks()
 
 void Context::spawn_aux1(std::function<Task<>()> coroutine)
 {
-    spawn_aux2(coroutine);
+    spawn_aux2(std::move(coroutine));
 }
 
-Task<> Context::spawn_aux2(std::function<Task<>()> coroutine)
+RootTask Context::spawn_aux2(std::function<Task<>()>&& coroutine)
 {
     co_await coroutine();
 }

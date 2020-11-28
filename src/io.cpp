@@ -1,11 +1,20 @@
+#include <WinSock2.h>
 #include <bco/io.h>
 #include <bco/buffer.h>
 
 namespace bco {
 
+std::tuple<TcpSocket, int> TcpSocket::create(Proactor* proactor)
+{
+    int sock = ::WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, nullptr, 0, WSA_FLAG_OVERLAPPED);
+    return { TcpSocket { proactor, sock }, sock < 0 ? WSAGetLastError() : 0 };
+}
+
 TcpSocket::TcpSocket(Proactor* proactor, int fd)
     : proactor_(proactor), socket_(fd)
 {
+    if (proactor)
+        proactor_->attach(fd);
 }
 
 ProactorTask<int> TcpSocket::read(Buffer buffer)

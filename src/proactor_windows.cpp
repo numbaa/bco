@@ -30,7 +30,6 @@ struct OverlapInfo {
 };
 
 struct AcceptOverlapInfo : OverlapInfo {
-    SOCKET client_sock;
     std::array<uint8_t, kAcceptBuffLen> buff;
 };
 
@@ -199,11 +198,17 @@ std::vector<std::function<void()>> Proactor::drain(uint32_t timeout_ms)
         }
         auto end_time = std::chrono::high_resolution_clock().now();
         auto used_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-        timeout_ms -= used_ms;
-        if (timeout_ms <= 0)
+        if (timeout_ms <= used_ms)
             break;
+        else
+            timeout_ms -= used_ms;
     }
     return std::move(cbs);
+}
+
+void Proactor::attach(int fd)
+{
+    ::CreateIoCompletionPort(reinterpret_cast<HANDLE>(fd), complete_port_, NULL, 0);
 }
 
 }
