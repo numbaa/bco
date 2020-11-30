@@ -69,6 +69,12 @@ int Proactor::read(int s, Buffer buff, std::function<void(int length)>&& cb)
     DWORD flags = 0;
     DWORD bytes_transferred;
     int ret = ::WSARecv(s, &wsabuf, 1, &bytes_transferred, &flags, &overlap_info->overlapped, nullptr);
+    if (ret == SOCKET_ERROR) {
+        int last_error = ::WSAGetLastError();
+        return last_error == WSA_IO_PENDING ? 0 : last_error;
+    }
+    return 0;
+    /*
     if (ret == 0) {
         delete overlap_info;
         return bytes_transferred;
@@ -76,6 +82,7 @@ int Proactor::read(int s, Buffer buff, std::function<void(int length)>&& cb)
     if (ret == SOCKET_ERROR && ::WSAGetLastError() == WSA_IO_PENDING) {
         return 0;
     }
+    */
     return -1;
 }
 
@@ -90,6 +97,12 @@ int Proactor::write(int s, Buffer buff, std::function<void(int length)>&& cb)
     DWORD flags = 0;
     DWORD bytes_transferred;
     int ret = ::WSASend(s, &wsabuf, 1, &bytes_transferred, flags, &overlap_info->overlapped, nullptr);
+    if (ret == SOCKET_ERROR) {
+        int last_error = ::WSAGetLastError();
+        return last_error == WSA_IO_PENDING ? 0 : last_error;
+    }
+    return 0;
+    /*
     if (ret == 0) {
         delete overlap_info;
         return bytes_transferred;
@@ -98,6 +111,7 @@ int Proactor::write(int s, Buffer buff, std::function<void(int length)>&& cb)
         return 0;
     }
     return -1;
+    */
 }
 
 int Proactor::accept(int s, std::function<void(int s)>&& cb)

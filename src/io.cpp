@@ -1,4 +1,5 @@
 #include <WinSock2.h>
+#include <cassert>
 #include <bco/io.h>
 #include <bco/buffer.h>
 
@@ -6,8 +7,9 @@ namespace bco {
 
 std::tuple<TcpSocket, int> TcpSocket::create(Proactor* proactor)
 {
-    int sock = ::WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, nullptr, 0, WSA_FLAG_OVERLAPPED);
-    return { TcpSocket { proactor, sock }, sock < 0 ? WSAGetLastError() : 0 };
+    int sock = ::socket(AF_INET, SOCK_STREAM, 0);
+    //change -1 to something like WSAGetLastError()
+    return { TcpSocket { proactor, sock }, sock < 0 ? -1 : 0 };
 }
 
 TcpSocket::TcpSocket(Proactor* proactor, int fd)
@@ -24,9 +26,11 @@ ProactorTask<int> TcpSocket::read(Buffer buffer)
         task.set_result(std::forward<int>(length));
         task.resume();
     });
+    /*
     if (size > 0) {
         task.set_result(std::forward<int>(size));
     }
+    */
     return task;
 }
 
@@ -37,9 +41,11 @@ ProactorTask<int> TcpSocket::write(Buffer buffer)
         task.set_result(std::forward<int>(length));
         task.resume();
     });
+    /*
     if (size > 0) {
         task.set_result(std::forward<int>(size));
     }
+    */
     return task;
 }
 
@@ -55,6 +61,8 @@ ProactorTask<TcpSocket> TcpSocket::accept()
     if (fd > 0) {
         TcpSocket s{proactor, fd};
         task.set_result(std::move(s));
+    } else if (fd < 0) {
+        assert(false);
     }
     return task;
 }
