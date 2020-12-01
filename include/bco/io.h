@@ -1,5 +1,5 @@
 #pragma once
-
+#include <cassert>
 #include "executor.h"
 #include "task.h"
 #include "proactor.h"
@@ -12,7 +12,7 @@ public:
     static std::tuple<TcpSocket, int> create(P* proactor)
     {
         int sock = static_cast<int>(::socket(AF_INET, SOCK_STREAM, 0));
-        return { TcpSocket { proactor, sock }, sock < 0 ? WSAGetLastError() : 0 };
+        return { TcpSocket { proactor, sock }, sock < 0 ? -1 : 0 };
     }
     TcpSocket() = default;
     TcpSocket(P* proactor, int fd = -1)
@@ -31,9 +31,11 @@ public:
             task.set_result(std::forward<int>(length));
             task.resume();
         });
+        /*
         if (size > 0) {
             task.set_result(std::forward<int>(size));
         }
+        */
         return task;
     }
     [[nodiscard]] ProactorTask<int> write(std::span<std::byte> buffer)
@@ -45,9 +47,11 @@ public:
             task.set_result(std::forward<int>(length));
             task.resume();
         });
+        /*
         if (size > 0) {
             task.set_result(std::forward<int>(size));
         }
+        */
         return task;
     }
     [[nodiscard]] ProactorTask<TcpSocket> accept()
@@ -64,6 +68,8 @@ public:
         if (fd > 0) {
             TcpSocket s { proactor, fd };
             task.set_result(std::move(s));
+        } else if (fd < 0) {
+            assert(false);
         }
         return task;
     }

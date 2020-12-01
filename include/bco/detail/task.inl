@@ -15,7 +15,9 @@ class PromiseType<_TaskT, void> {
         template <typename _PromiseT>
         std::coroutine_handle<void> await_suspend(std::coroutine_handle<_PromiseT> coroutine) noexcept
         {
-            return coroutine.promise().caller_coroutine();
+            auto caller_coroutine = coroutine.promise().caller_coroutine();
+            coroutine.destroy();
+            return caller_coroutine;
         }
         void await_resume() noexcept { }
         void return_void() { }
