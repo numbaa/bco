@@ -13,6 +13,7 @@ public:
         : proactor_(std::move(proactor))
         , executor_(std::move(executor))
     {
+        executor_->set_proactor_task_getter(std::bind(&Context::get_proactor_tasks, this));
     }
     void loop()
     {
@@ -42,7 +43,10 @@ public:
     }
 
 private:
-    std::vector<std::function<void()>> get_proactor_tasks();
+    std::vector<std::function<void()>> get_proactor_tasks()
+    {
+        return proactor_->drain(1);
+    }
     void spawn_aux1(std::function<Task<>()> coroutine)
     {
         spawn_aux2(std::move(coroutine));

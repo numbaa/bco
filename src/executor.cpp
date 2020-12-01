@@ -17,15 +17,22 @@ void Executor::run()
         mutex_.lock();
         auto old_tasks = std::move(tasks_);
         mutex_.unlock();
+        auto proactor_tasks = get_proactor_task_();
         if (old_tasks.empty()) {
-            //std::this_thread::yield();
-            std::this_thread::sleep_for(std::chrono::milliseconds { 2 });
-            continue;
+            std::this_thread::yield();
         }
         for (auto&& task : old_tasks) {
             task();
         }
+        for (auto&& task : proactor_tasks) {
+            task();
+        }
     }
+}
+
+void Executor::set_proactor_task_getter(std::function<std::vector<std::function<void()>>()> drain_func)
+{
+    get_proactor_task_ = drain_func;
 }
 
 } //namespace bco

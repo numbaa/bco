@@ -11,11 +11,13 @@ class TcpSocket {
 public:
     static std::tuple<TcpSocket, int> create(P* proactor)
     {
-        int sock = ::WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, nullptr, 0, WSA_FLAG_OVERLAPPED);
+        int sock = static_cast<int>(::socket(AF_INET, SOCK_STREAM, 0));
         return { TcpSocket { proactor, sock }, sock < 0 ? WSAGetLastError() : 0 };
     }
     TcpSocket() = default;
     TcpSocket(P* proactor, int fd = -1)
+        : proactor_(proactor)
+        , socket_(fd)
     {
         if (proactor)
             proactor_->attach(fd);
