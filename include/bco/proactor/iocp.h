@@ -1,22 +1,29 @@
 ﻿#pragma once
-
+#include <Windows.h>
 #include <functional>
 #include <memory>
 #include <vector>
-#include <Windows.h>
+#include <span>
+
 
 namespace bco {
 class Executor;
-class Buffer;
+//class Buffer;
 
-class Proactor {
+class IOCP {
 public:
-    Proactor();
-    int read(int s, Buffer buff, std::function<void(int length)>&& cb);
-    int write(int s, Buffer buff, std::function<void(int length)>&& cb);
+    IOCP();
+
+    int read(int s, std::span<std::byte> buff, std::function<void(int length)>&& cb);
+
+    int write(int s, std::span<std::byte> buff, std::function<void(int length)>&& cb);
+
     int accept(int s, std::function<void(int s)>&& cb);
+
     bool connect(sockaddr_in addr, std::function<void(int)>&& cb);
+
     std::vector<std::function<void()>> drain(uint32_t timeout_ms);
+
     void attach(int fd);
 
 private:

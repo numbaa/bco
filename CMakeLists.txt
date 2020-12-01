@@ -8,8 +8,8 @@ if(WIN32)
 add_definitions(-DNOMINMAX)
 #add_compile_options(/await)
 set(PLAT_SPEC
-    "include/bco/detail/proactor_windows.h"
-    "src/proactor_windows.cpp"
+    "include/bco/proactor/iocp.h"
+    "src/proactor/iocp.cpp"
     )
 else()
 add_compile_options(-fcoroutines)
@@ -29,10 +29,10 @@ add_library(${PROJECT_NAME} STATIC
     "include/bco/buffer.h"
     "include/bco/task.h"
     "src/executor.cpp"
-    "src/io.cpp"
+    
     "src/task.cpp"
-    "src/context.cpp"
- )
+    
+  "include/bco/proactor.h")
 
  if(WIN32)
  target_link_libraries(${PROJECT_NAME}

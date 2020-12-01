@@ -6,9 +6,10 @@
 #include <vector>
 #include <array>
 #include <functional>
-#include <bco/detail/proactor_windows.h>
+#include <bco/proactor/iocp.h>
 #include <bco/executor.h>
 #include <bco/buffer.h>
+#include <iostream>
 
 namespace bco {
 
@@ -45,6 +46,7 @@ static void handle_overlap_success(WSAOVERLAPPED* overlapped, int bytes, std::ve
     }
     case OverlapAction::Receive:
     case OverlapAction::Send:
+        std::cout << "handle_overlap:" << (int)overlap_info->action << std::endl;
         cbs.push_back(std::bind(overlap_info->cb, bytes));
         delete overlap_info;
         break;
@@ -53,22 +55,23 @@ static void handle_overlap_success(WSAOVERLAPPED* overlapped, int bytes, std::ve
     }
 }
 
-Proactor::Proactor()
+IOCP::IOCP()
 {
     this->complete_port_ = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 1);
 }
 
-int Proactor::read(int s, Buffer buff, std::function<void(int length)>&& cb)
+int IOCP::read(int s, std::span<std::byte> buff, std::function<void(int length)>&& cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
     overlap_info->action = OverlapAction::Receive;
     overlap_info->cb = std::move(cb);
     overlap_info->sock = s;
     ::SecureZeroMemory((PVOID)&overlap_info->overlapped, sizeof(WSAOVERLAPPED));
-    WSABUF wsabuf {buff.length(), static_cast<char*>(buff.data())};
+    WSABUF wsabuf {buff.size(), reinterpret_cast<char*>(buff.data())};
     DWORD flags = 0;
     DWORD bytes_transferred;
     int ret = ::WSARecv(s, &wsabuf, 1, &bytes_transferred, &flags, &overlap_info->overlapped, nullptr);
+    std::cout << "Recv\n";
     if (ret == 0) {
         delete overlap_info;
         return bytes_transferred;
@@ -79,17 +82,19 @@ int Proactor::read(int s, Buffer buff, std::function<void(int length)>&& cb)
     return -1;
 }
 
-int Proactor::write(int s, Buffer buff, std::function<void(int length)>&& cb)
+int IOCP::write(int s, std::span<std::byte> buff, std::function<void(int length)>&& cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
     overlap_info->action = OverlapAction::Send;
     overlap_info->cb = std::move(cb);
     overlap_info->sock = s;
     ::SecureZeroMemory((PVOID)&overlap_info->overlapped, sizeof(WSAOVERLAPPED));
-    WSABUF wsabuf {buff.length(), static_cast<char*>(buff.data())};
+    WSABUF wsabuf {buff.size(), reinterpret_cast<char*>(buff.data())};
     DWORD flags = 0;
     DWORD bytes_transferred;
     int ret = ::WSASend(s, &wsabuf, 1, &bytes_transferred, flags, &overlap_info->overlapped, nullptr);
+    std::cout << "Send\n";
+    //return 0;
     if (ret == 0) {
         delete overlap_info;
         return bytes_transferred;
@@ -100,7 +105,7 @@ int Proactor::write(int s, Buffer buff, std::function<void(int length)>&& cb)
     return -1;
 }
 
-int Proactor::accept(int s, std::function<void(int s)>&& cb)
+int IOCP::accept(int s, std::function<void(int s)>&& cb)
 {
     AcceptOverlapInfo* overlap_info = new AcceptOverlapInfo;
     overlap_info->action = OverlapAction::Accept;
@@ -140,7 +145,7 @@ LPFN_CONNECTEX GetConnectEx(SOCKET so)
     return fnConnectEx;
 }
 
-bool Proactor::connect(sockaddr_in addr, std::function<void(int)>&& cb)
+bool IOCP::connect(sockaddr_in addr, std::function<void(int)>&& cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
     overlap_info->action = OverlapAction::Connect;
@@ -161,7 +166,7 @@ bool Proactor::connect(sockaddr_in addr, std::function<void(int)>&& cb)
     return false;
 }
 
-std::vector<std::function<void()>> Proactor::drain(uint32_t timeout_ms)
+std::vector<std::function<void()>> IOCP::drain(uint32_t timeout_ms)
 {
     DWORD bytes;
     LPOVERLAPPED overlapped;
@@ -169,6 +174,8 @@ std::vector<std::function<void()>> Proactor::drain(uint32_t timeout_ms)
     DWORD remain_ms;
     if (timeout_ms == std::numeric_limits<uint32_t>::max()) {
         remain_ms = INFINITE;
+    } else if (timeout_ms == 0) {
+        remain_ms = 1;
     } else {
         remain_ms = timeout_ms;
     }
@@ -192,21 +199,21 @@ std::vector<std::function<void()>> Proactor::drain(uint32_t timeout_ms)
             assert(false);
         } else if (ret != 0 && overlapped != 0) {
             handle_overlap_success(overlapped, bytes, cbs);
-            break;
+            //break;
         } else {
             assert(false);
         }
         auto end_time = std::chrono::high_resolution_clock().now();
         auto used_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-        if (timeout_ms <= used_ms)
+        if (remain_ms <= used_ms)
             break;
         else
-            timeout_ms -= used_ms;
+            remain_ms -= used_ms;
     }
     return std::move(cbs);
 }
 
-void Proactor::attach(int fd)
+void IOCP::attach(int fd)
 {
     ::CreateIoCompletionPort(reinterpret_cast<HANDLE>(fd), complete_port_, NULL, 0);
 }

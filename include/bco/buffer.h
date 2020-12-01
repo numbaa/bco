@@ -1,7 +1,7 @@
 #pragma once
 
 namespace bco {
-
+/*
 class Buffer {
 public:
     Buffer(void* data, size_t length)
@@ -22,5 +22,5 @@ private:
     void* data_;
     size_t length_;
 };
-
+*/
 }
