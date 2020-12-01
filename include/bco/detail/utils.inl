@@ -4,7 +4,7 @@ namespace bco
 
 namespace detail
 {
-
+/*
 template <typename T = void>
 inline T default_value();
 
@@ -19,7 +19,7 @@ inline std::string default_value<std::string>()
 {
     return "";
 }
-
+*/
 } // namespace detail
 
 } // namespace bco

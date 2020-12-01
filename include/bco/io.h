@@ -14,6 +14,7 @@ public:
         int sock = ::WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, nullptr, 0, WSA_FLAG_OVERLAPPED);
         return { TcpSocket { proactor, sock }, sock < 0 ? WSAGetLastError() : 0 };
     }
+    TcpSocket() = default;
     TcpSocket(P* proactor, int fd = -1)
     {
         if (proactor)
@@ -72,18 +73,14 @@ public:
     {
         return ::bind(socket_, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr_in));
     }
+    static TcpSocket defalt_value()
+    {
+        return TcpSocket { nullptr, -1 };
+    }
 
 private:
     P* proactor_;
     int socket_;
 };
-
-/*
-template <Proactor P>
-inline TcpSocket<P> detail::default_value<TcpSocket<P>>()
-{
-    return TcpSocket<P> {nullptr, -1};
-}
-*/
 
 }

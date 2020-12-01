@@ -9,7 +9,7 @@ namespace bco
 template <Proactor P>
 class Context {
 public:
-    Context(std::unique_ptr<P> proactor, std::unique_ptr<Executor> executor)
+    Context(std::unique_ptr<P>&& proactor, std::unique_ptr<Executor>&& executor)
         : proactor_(std::move(proactor))
         , executor_(std::move(executor))
     {

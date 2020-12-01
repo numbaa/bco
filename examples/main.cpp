@@ -1,10 +1,12 @@
 #include <array>
 #include <string>
 #include <iostream>
+#include <memory>
 #include <bco/bco.h>
+#include <bco/proactor.h>
 #include <bco/proactor/iocp.h>
 
-template <Proactor P>
+template <typename P> requires bco::Proactor<P>
 class EchoServer {
 public:
     EchoServer(bco::Context<P>* ctx, uint32_t port)
@@ -47,7 +49,7 @@ private:
     {
         std::array<uint8_t, 1024> data;
         while (true) {
-            std::span<std::byte> buffer{data.data(), data.size()};
+            std::span<std::byte> buffer((std::byte*)data.data(), data.size());
             int bytes_received = co_await sock.read(buffer);
             std::cout << "Received: " << std::string((char*)buffer.data(), bytes_received);
             int bytes_sent = co_await sock.write(std::span<std::byte> { buffer.data(), static_cast<size_t>(bytes_received) });
@@ -65,11 +67,20 @@ void init_winsock()
     WSAStartup(MAKEWORD(2, 2), &wsdata);
 }
 
+template <typename T> requires bco::Proactor<T>
+void func_use_proactor(T obj)
+{
+}
+
 int main()
 {
     init_winsock();
-    auto ctx = bco::Context(std::make_unique<bco::IOCP>(), std::make_unique<bco::Executor>());
+    auto iocp = std::make_unique<bco::IOCP>();
+    auto executor = std::make_unique<bco::Executor>();
+    bco::Context ctx { std::move(iocp), std::move(executor) };
     EchoServer server{&ctx, 30000};
     ctx.loop();
+    //bco::IOCP xx;
+    //func_use_proactor(xx);
     return 0;
 }

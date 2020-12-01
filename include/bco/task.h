@@ -76,7 +76,8 @@ public:
     T await_resume() noexcept
     {
         //return std::move(result_.value_or(detail::default_value<T>());
-        return ctx_->result_.value_or(detail::default_value<T>());
+        //return ctx_->result_.value_or(detail::default_value<T>());
+        return ctx_->result_.value_or(T {});
     }
     void resume() { ctx_->caller_coroutine_.resume(); }
 

@@ -22,7 +22,7 @@ concept Buffer = requires(T b) {
 */
 
 template <typename T>
-concept Readable = requires(T r, int s, std::span<std::uint8_t> buff, std::function<void(int length)>&& cb)
+concept Readable = requires(T r, int s, std::span<std::byte> buff, std::function<void(int length)>&& cb)
 {
     {
         r.read(s, buff, std::move(cb))
@@ -31,7 +31,7 @@ concept Readable = requires(T r, int s, std::span<std::uint8_t> buff, std::funct
 };
 
 template <typename T>
-concept Writable = requires(T r, int s, std::span<std::uint8_t> buff, std::function<void(int length)>&& cb)
+concept Writable = requires(T r, int s, std::span<std::byte> buff, std::function<void(int length)>&& cb)
 {
     {
         r.write(s, buff, std::move(cb))
