@@ -23,16 +23,17 @@ add_library(${PROJECT_NAME} STATIC
     "include/bco/detail/utils.inl"
     "include/bco/detail/task.inl"
     "include/bco/bco.h"
-    "include/bco/executor.h"
+    "include/bco/executor/simple_executor.h"
     "include/bco/io.h"
     "include/bco/context.h"
     "include/bco/buffer.h"
     "include/bco/task.h"
-    "src/executor.cpp"
+    "src/executor/simple_executor.cpp"
     
     "src/task.cpp"
     
-  "include/bco/proactor.h")
+  "include/bco/proactor.h"
+  "include/bco/executor.h")
 
  if(WIN32)
  target_link_libraries(${PROJECT_NAME}

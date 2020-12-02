@@ -7,7 +7,7 @@
 
 
 namespace bco {
-class Executor;
+class SimpleExecutor;
 //class Buffer;
 
 class IOCP {
@@ -27,7 +27,7 @@ public:
     void attach(int fd);
 
 private:
-    void set_executor(Executor* executor);
+    void set_executor(SimpleExecutor* executor);
 
 private:
     ::HANDLE complete_port_;

@@ -6,6 +6,7 @@
 #include <vector>
 #include <array>
 #include <functional>
+#include <thread>
 #include <bco/proactor/iocp.h>
 #include <bco/executor.h>
 #include <bco/buffer.h>

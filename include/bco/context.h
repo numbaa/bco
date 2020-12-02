@@ -6,10 +6,10 @@
 namespace bco
 {
 
-template <Proactor P>
+template <Proactor P, Executor E>
 class Context {
 public:
-    Context(std::unique_ptr<P>&& proactor, std::unique_ptr<Executor>&& executor)
+    Context(std::unique_ptr<P>&& proactor, std::unique_ptr<E>&& executor)
         : proactor_(std::move(proactor))
         , executor_(std::move(executor))
     {
@@ -24,7 +24,7 @@ public:
         executor_->post(std::bind(&Context::spawn_aux1, this, coroutine));
     }
     /*
-    void set_executor(std::unique_ptr<Executor>&& executor)
+    void set_executor(std::unique_ptr<SimpleExecutor>&& executor)
     {
         executor_ = std::move(executor);
     }
@@ -33,7 +33,7 @@ public:
         proactor_ = std::move(proactor);
     }
     */
-    Executor* executor()
+    E* executor()
     {
         return executor_.get();
     }
@@ -57,9 +57,8 @@ private:
     }
 
 private:
-    std::unique_ptr<Executor> executor_;
+    std::unique_ptr<E> executor_;
     std::unique_ptr<P> proactor_;
-    friend class Executor;
 };
 
 } // namespace bco

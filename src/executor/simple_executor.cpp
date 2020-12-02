@@ -1,17 +1,17 @@
-#include <bco/executor.h>
+#include <bco/executor/simple_executor.h>
 #include <bco/context.h>
 #include <chrono>
 #include <thread>
 
 namespace bco {
 
-void Executor::post(std::function<void()>&& func)
+void SimpleExecutor::post(std::function<void()>&& func)
 {
     std::lock_guard<std::mutex> lock { mutex_ };
     tasks_.push_back(func);
 }
 
-void Executor::run()
+void SimpleExecutor::run()
 {
     while (true) {
         mutex_.lock();
@@ -30,7 +30,7 @@ void Executor::run()
     }
 }
 
-void Executor::set_proactor_task_getter(std::function<std::vector<std::function<void()>>()> drain_func)
+void SimpleExecutor::set_proactor_task_getter(std::function<std::vector<std::function<void()>>()> drain_func)
 {
     get_proactor_task_ = drain_func;
 }

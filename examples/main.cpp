@@ -5,11 +5,13 @@
 #include <bco/bco.h>
 #include <bco/proactor.h>
 #include <bco/proactor/iocp.h>
+#include <bco/executor.h>
+#include <bco/executor/simple_executor.h>
 
-template <typename P> requires bco::Proactor<P>
-class EchoServer : public std::enable_shared_from_this<EchoServer<P>> {
+template <bco::Proactor P, bco::Executor E>
+class EchoServer : public std::enable_shared_from_this<EchoServer<P,E>> {
 public:
-    EchoServer(bco::Context<P>* ctx, uint32_t port)
+    EchoServer(bco::Context<P, E>* ctx, uint32_t port)
         : ctx_(ctx), listen_port_(port)
     {
         //start();
@@ -63,7 +65,7 @@ private:
     }
 
 private:
-    bco::Context<P>* ctx_;
+    bco::Context<P,E>* ctx_;
     uint16_t listen_port_;
 };
 
@@ -77,9 +79,9 @@ int main()
 {
     init_winsock();
     auto iocp = std::make_unique<bco::IOCP>();
-    auto executor = std::make_unique<bco::Executor>();
+    auto executor = std::make_unique<bco::SimpleExecutor>();
     bco::Context ctx { std::move(iocp), std::move(executor) };
-    auto server = std::make_shared<EchoServer<bco::IOCP>>(&ctx, 30000);
+    auto server = std::make_shared<EchoServer<bco::IOCP, bco::SimpleExecutor>>(&ctx, 30000);
     server->start();
     ctx.loop();
     return 0;
