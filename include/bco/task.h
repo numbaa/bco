@@ -36,7 +36,7 @@ public:
     public:
         RootTask get_return_object()
         {
-            coroutine_ = std::coroutine_handle<promise_type>::from_promise(*this);
+            //coroutine_ = std::coroutine_handle<promise_type>::from_promise(*this);
             return RootTask {};
         }
         std::suspend_never initial_suspend()
@@ -45,7 +45,7 @@ public:
         }
         std::suspend_never final_suspend()
         {
-            coroutine_.destroy();
+            //coroutine_.destroy();
             return {};
         }
         void unhandled_exception()
@@ -56,7 +56,7 @@ public:
         }
 
     private:
-        std::coroutine_handle<promise_type> coroutine_;
+        //std::coroutine_handle<promise_type> coroutine_;
     };
 };
 

@@ -28,12 +28,12 @@ add_library(${PROJECT_NAME} STATIC
     "include/bco/context.h"
     "include/bco/buffer.h"
     "include/bco/task.h"
+    "include/bco/proactor.h"
+    "include/bco/executor.h"
     "src/executor/simple_executor.cpp"
-    
+    "src/proactor/select.cpp"
     "src/task.cpp"
-    
-  "include/bco/proactor.h"
-  "include/bco/executor.h")
+ )
 
  if(WIN32)
  target_link_libraries(${PROJECT_NAME}

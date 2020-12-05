@@ -27,9 +27,6 @@ public:
     void attach(int fd);
 
 private:
-    void set_executor(SimpleExecutor* executor);
-
-private:
     ::HANDLE complete_port_;
 };
 
