@@ -12,6 +12,7 @@ public:
     static std::tuple<TcpSocket, int> create(P* proactor)
     {
         int sock = static_cast<int>(::socket(AF_INET, SOCK_STREAM, 0));
+        set_non_block(sock);
         return { TcpSocket { proactor, sock }, sock < 0 ? -1 : 0 };
     }
     TcpSocket() = default;
@@ -84,6 +85,18 @@ public:
     static TcpSocket defalt_value()
     {
         return TcpSocket { nullptr, -1 };
+    }
+
+private:
+    static inline void set_non_block(int sock)
+    {
+        #ifdef _WIN32
+        u_long enable = 1;
+        ::ioctlsocket(sock, FIONBIO, &enable);
+        #else
+        int flags = ::fcntl(fd, F_GETFL, 0);
+        fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+        #endif
     }
 
 private:
