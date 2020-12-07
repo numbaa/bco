@@ -11,9 +11,11 @@ class TcpSocket {
 public:
     static std::tuple<TcpSocket, int> create(P* proactor)
     {
-        int sock = static_cast<int>(::socket(AF_INET, SOCK_STREAM, 0));
-        set_non_block(sock);
-        return { TcpSocket { proactor, sock }, sock < 0 ? -1 : 0 };
+        int fd = proactor->CreateFd();
+        if (fd < 0)
+            return { TcpSocket {}, -1 };
+        else
+            return { TcpSocket { proactor, fd }, 0 };
     }
     TcpSocket() = default;
     TcpSocket(P* proactor, int fd = -1)

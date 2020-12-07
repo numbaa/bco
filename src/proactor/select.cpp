@@ -1,6 +1,7 @@
 #include <cassert>
 #include <thread>
 #include <bco/proactor/select.h>
+#include <bco/utils.h>
 
 namespace bco {
 
@@ -8,9 +9,22 @@ Select::Select()
 {
 }
 
+int Select::create_fd()
+{
+    auto fd = ::socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0)
+        return static_cast<int>(fd);
+    set_non_block(static_cast<int>(fd));
+    return static_cast<int>(fd);
+}
+
 void Select::start()
 {
     harvest_thread_ = std::move(std::thread {std::bind(&Select::select_loop, this)});
+}
+
+void Select::stop()
+{
 }
 
 int Select::read(int s, std::span<std::byte> buff, std::function<void(int length)>&& cb)
@@ -50,22 +64,22 @@ int Select::accept(int s, std::function<void(int s)>&& cb)
     return 0;
 }
 
-void Select::on_io_event(const std::map<int, SelectTask>& x, const fd_set& fds)
+void Select::on_io_event(const std::map<int, SelectTask>& tasks, const fd_set& fds)
 {
-    for (auto& xx : x) {
-        if (FD_ISSET(xx.first, &fds))
-            switch (xx.second.action) {
+    for (auto& task : tasks) {
+        if (FD_ISSET(task.first, &fds))
+            switch (task.second.action) {
             case Action::Accept:
-                do_accept(xx.second);
+                do_accept(task.second);
                 break;
             case Action::Read:
-                do_read(xx.second);
+                do_read(task.second);
                 break;
             case Action::Write:
-                do_write(xx.second);
+                do_write(task.second);
                 break;
             case Action::Connect:
-                on_connected(xx.second);
+                on_connected(task.second);
                 break;
             default:
                 assert(false);
@@ -73,10 +87,10 @@ void Select::on_io_event(const std::map<int, SelectTask>& x, const fd_set& fds)
     }
 }
 
-void Select::prepare_fd_set(const std::map<int, SelectTask>& x, fd_set& fds)
+void Select::prepare_fd_set(const std::map<int, SelectTask>& tasks, fd_set& fds)
 {
-    for (auto& s : x) {
-        FD_SET(s.first, &fds);
+    for (auto& task : tasks) {
+        FD_SET(task.first, &fds);
     }
 }
 
@@ -107,57 +121,47 @@ void Select::do_accept(SelectTask task)
 {
     sockaddr_in addr;
     int len;
-    int ret = ::accept(task.fd, reinterpret_cast<sockaddr*>(&addr), &len);
-    if (ret >= 0) {
+    auto fd = ::accept(task.fd, reinterpret_cast<sockaddr*>(&addr), &len);
+    if (fd >= 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
+        set_non_block(static_cast<int>(fd));
         std::lock_guard lock { mtx_ };
         pending_rfds_.erase(task.fd);
-        completed_task_.push_back(std::bind(task.cb, ret));
+        completed_task_.push_back(std::bind(task.cb, static_cast<int>(fd)));
         return;
     }
-    switch (errno) {
-    case EAGAIN:
-    default:
-    }
+    //do nothing, it will try again
 }
 
 void Select::do_read(SelectTask task)
 {
-    int ret = ::recv(task.fd, reinterpret_cast<char*>(task.buff.data()), task.buff.size(), 0);
-    if (ret >= 0) {
+    int bytes = ::recv(task.fd, reinterpret_cast<char*>(task.buff.data()), task.buff.size(), 0);
+    if (bytes >= 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
         std::lock_guard lock { mtx_ };
         pending_rfds_.erase(task.fd);
-        completed_task_.push_back(std::bind(task.cb, ret));
+        completed_task_.push_back(std::bind(task.cb, bytes));
         return;
     }
-    switch (errno) {
-    case EAGAIN:
-    default:
-    }
+    //do nothing, it will try again
 }
 
 
 void Select::do_write(SelectTask task)
 {
-    int ret = ::send(task.fd, reinterpret_cast<const char*>(task.buff.data()), task.buff.size(), 0);
-    if (ret >= 0) {
+    int bytes = ::send(task.fd, reinterpret_cast<const char*>(task.buff.data()), task.buff.size(), 0);
+    if (bytes >= 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
         std::lock_guard lock { mtx_ };
         pending_wfds_.erase(task.fd);
-        completed_task_.push_back(std::bind(task.cb, ret));
+        completed_task_.push_back(std::bind(task.cb, bytes));
         return;
     }
-    switch (errno) {
-    case EAGAIN:
-    default:
-    }
+    //do nothing, it will try again
 }
 
 void Select::on_connected(SelectTask task)
 {
-    //TODO: ¥ÌŒÛ¥¶¿Ì
     std::lock_guard lock { mtx_ };
     pending_wfds_.erase(task.fd);
     completed_task_.push_back(std::bind(task.cb, task.fd));
-
 }
 
 timeval Select::next_timeout()

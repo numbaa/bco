@@ -33,7 +33,7 @@ add_library(${PROJECT_NAME} STATIC
     "src/executor/simple_executor.cpp"
     "src/proactor/select.cpp"
     "src/task.cpp"
- )
+  "include/bco/utils.h")
 
  if(WIN32)
  target_link_libraries(${PROJECT_NAME}

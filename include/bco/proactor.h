@@ -75,6 +75,10 @@ concept Attachable = requires(T r, int s)
 };
 
 template <typename T>
-concept Proactor = Readable<T>&& Writable<T>&& Acceptable<T>&& Connectable<T>&& Drainable<T>&& Attachable<T>;
-
-}
+concept Proactor = Readable<T>&& Writable<T>&& Acceptable<T>&& Connectable<T>&& Drainable<T>&& Attachable<T>&& requires(T p)
+{
+    {
+        p.create_fd()
+    }
+    ->std::same_as<int>;
+};

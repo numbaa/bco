@@ -32,7 +32,9 @@ class Select {
 public:
     Select();
     ~Select();
+    int create_fd();
     void start();
+    void stop();
     int read(int s, std::span<std::byte> buff, std::function<void(int length)>&& cb);
 
     int write(int s, std::span<std::byte> buff, std::function<void(int length)>&& cb);
@@ -52,9 +54,9 @@ private:
     void do_read(SelectTask task);
     void do_write(SelectTask task);
     void on_connected(SelectTask task);
-    void on_io_event(const std::map<int, SelectTask>& x, const fd_set& fds);
+    void on_io_event(const std::map<int, SelectTask>& tasks, const fd_set& fds);
     std::tuple<std::map<int, SelectTask>, std::map<int, SelectTask>> get_pending_io();
-    static void prepare_fd_set(const std::map<int, SelectTask>& x, fd_set& fds);
+    static void prepare_fd_set(const std::map<int, SelectTask>& tasks, fd_set& fds);
 
 
 private:
