@@ -1,8 +1,7 @@
 #pragma once
 #include <cassert>
-#include "executor.h"
-#include "task.h"
-#include "proactor.h"
+#include <bco/proactor.h>
+#include <bco/task.h>
 
 namespace bco {
 
@@ -11,7 +10,7 @@ class TcpSocket {
 public:
     static std::tuple<TcpSocket, int> create(P* proactor)
     {
-        int fd = proactor->CreateFd();
+        int fd = proactor->create_fd();
         if (fd < 0)
             return { TcpSocket {}, -1 };
         else
@@ -22,8 +21,6 @@ public:
         : proactor_(proactor)
         , socket_(fd)
     {
-        if (proactor)
-            proactor_->attach(fd);
     }
     [[nodiscard]] ProactorTask<int> read(std::span<std::byte> buffer)
     {
@@ -87,18 +84,6 @@ public:
     static TcpSocket defalt_value()
     {
         return TcpSocket { nullptr, -1 };
-    }
-
-private:
-    static inline void set_non_block(int sock)
-    {
-        #ifdef _WIN32
-        u_long enable = 1;
-        ::ioctlsocket(sock, FIONBIO, &enable);
-        #else
-        int flags = ::fcntl(fd, F_GETFL, 0);
-        fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-        #endif
     }
 
 private:

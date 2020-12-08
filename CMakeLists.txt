@@ -20,13 +20,11 @@ endif()
 
 add_library(${PROJECT_NAME} STATIC
     ${PLAT_SPEC}
-    "include/bco/detail/utils.inl"
     "include/bco/detail/task.inl"
     "include/bco/bco.h"
     "include/bco/executor/simple_executor.h"
     "include/bco/io.h"
     "include/bco/context.h"
-    "include/bco/buffer.h"
     "include/bco/task.h"
     "include/bco/proactor.h"
     "include/bco/executor.h"

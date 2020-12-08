@@ -40,7 +40,8 @@ concept Writable = requires(T r, int s, std::span<std::byte> buff, std::function
 };
 
 template <typename T>
-concept Acceptable = requires(T p, int s, std::function<void(int length)>&& cb) {
+concept Acceptable = requires(T p, int s, std::function<void(int length)>&& cb)
+{
     {
         p.accept(s, std::move(cb))
     }
@@ -48,10 +49,10 @@ concept Acceptable = requires(T p, int s, std::function<void(int length)>&& cb) 
 };
 
 template <typename T>
-concept Connectable = requires(T p, sockaddr_in addr, std::function<void(int length)>&& cb)
+concept Connectable = requires(T p, int s, sockaddr_in addr, std::function<void(int length)>&& cb)
 {
     {
-        p.connect(addr, std::move(cb))
+        p.connect(s, addr, std::move(cb))
     }
     ->std::same_as<bool>;
 };
@@ -66,19 +67,12 @@ concept Drainable = requires(T r, uint32_t timeout_ms)
 };
 
 template <typename T>
-concept Attachable = requires(T r, int s)
-{
-    {
-        r.attach(s)
-    }
-    ->std::same_as<void>;
-};
-
-template <typename T>
-concept Proactor = Readable<T>&& Writable<T>&& Acceptable<T>&& Connectable<T>&& Drainable<T>&& Attachable<T>&& requires(T p)
+concept Proactor = Readable<T>&& Writable<T>&& Acceptable<T>&& Connectable<T>&& Drainable<T>&& requires(T p)
 {
     {
         p.create_fd()
     }
     ->std::same_as<int>;
 };
+
+}

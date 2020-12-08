@@ -4,7 +4,9 @@
 #include <memory>
 #include <bco/bco.h>
 #include <bco/proactor.h>
+#include <bco/context.h>
 #include <bco/proactor/iocp.h>
+#include <bco/proactor/select.h>
 #include <bco/executor.h>
 #include <bco/executor/simple_executor.h>
 
@@ -79,9 +81,12 @@ int main()
 {
     init_winsock();
     auto iocp = std::make_unique<bco::IOCP>();
+    //iocp->start();
+    auto se = std::make_unique<bco::Select>();
+    se->start();
     auto executor = std::make_unique<bco::SimpleExecutor>();
-    bco::Context ctx { std::move(iocp), std::move(executor) };
-    auto server = std::make_shared<EchoServer<bco::IOCP, bco::SimpleExecutor>>(&ctx, 30000);
+    bco::Context ctx { std::move(se), std::move(executor) };
+    auto server = std::make_shared<EchoServer<bco::Select, bco::SimpleExecutor>>(&ctx, 30000);
     server->start();
     ctx.loop();
     return 0;

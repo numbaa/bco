@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include <memory>
 #include <bco/executor.h>
 #include <bco/proactor.h>
 #include <bco/task.h>

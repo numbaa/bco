@@ -52,7 +52,7 @@ bool Select::connect(int s, sockaddr_in addr, std::function<void(int)>&& cb)
         max_wfd_ = s;
     ::connect(s, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
     pending_wfds_[s] = SelectTask {s, Action::Connect, std::span<std::byte> {}, cb};
-    return 0;
+    return true;
 }
 
 int Select::accept(int s, std::function<void(int s)>&& cb)
@@ -105,12 +105,16 @@ void Select::select_loop()
     while (true) {
         auto [ reading_fds, writing_fds ] = get_pending_io();
         fd_set rfds, wfds, efds;
+        FD_ZERO(&rfds);
+        FD_ZERO(&wfds);
+        FD_ZERO(&efds);
         prepare_fd_set(reading_fds, rfds);
         prepare_fd_set(writing_fds, wfds);
         timeval timeout = next_timeout();
         int ret = ::select(std::max(max_rfd_, max_wfd_)+1, &rfds, &wfds, &efds, &timeout);
         if (ret < 0) {
             //TODO error handling
+            continue;
         }
         on_io_event(reading_fds, rfds);
         on_io_event(writing_fds, wfds);
@@ -121,7 +125,9 @@ void Select::do_accept(SelectTask task)
 {
     sockaddr_in addr;
     int len;
-    auto fd = ::accept(task.fd, reinterpret_cast<sockaddr*>(&addr), &len);
+    auto fd = ::accept(task.fd, nullptr, 0);
+    auto e = errno;
+    auto e2 = WSAGetLastError();
     if (fd >= 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
         set_non_block(static_cast<int>(fd));
         std::lock_guard lock { mtx_ };
@@ -166,7 +172,7 @@ void Select::on_connected(SelectTask task)
 
 timeval Select::next_timeout()
 {
-    return timeval();
+    return timeval {0, 10000};
 }
 
 std::vector<std::function<void()>> Select::drain(uint32_t timeout_ms)

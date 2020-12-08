@@ -157,12 +157,12 @@ LPFN_CONNECTEX GetConnectEx(SOCKET so)
     return fnConnectEx;
 }
 
-bool IOCP::connect(sockaddr_in addr, std::function<void(int)>&& cb)
+bool IOCP::connect(int s, sockaddr_in addr, std::function<void(int)>&& cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
     overlap_info->action = OverlapAction::Connect;
     overlap_info->cb = std::move(cb);
-    overlap_info->sock = static_cast<int>(::socket(AF_INET, SOCK_STREAM, 0));
+    overlap_info->sock = s;
     if (overlap_info->sock == INVALID_SOCKET) {
         delete overlap_info;
         return false;
@@ -186,10 +186,10 @@ std::vector<std::function<void()>> IOCP::drain(uint32_t timeout_ms)
 
 void IOCP::iocp_loop()
 {
-    DWORD bytes;
-    LPOVERLAPPED overlapped;
-    ULONG_PTR completion_key;
     while (true) {
+        DWORD bytes;
+        LPOVERLAPPED overlapped;
+        ULONG_PTR completion_key;
         DWORD timeout = next_timeout();
         int ret = ::GetQueuedCompletionStatus(complete_port_, &bytes, &completion_key, &overlapped, timeout);
         if (ret == 0 && overlapped == 0) {
@@ -203,7 +203,6 @@ void IOCP::iocp_loop()
             }
         } else if (ret == 0 && overlapped != 0) {
             auto err = ::GetLastError();
-            break;
         } else if (ret != 0 && overlapped == 0) {
             assert(false);
         } else if (ret != 0 && overlapped != 0) {
@@ -220,6 +219,10 @@ void IOCP::handle_overlap_success(WSAOVERLAPPED* overlapped, int bytes)
     switch (overlap_info->action) {
     case OverlapAction::Accept: {
         AcceptOverlapInfo* accept_info = reinterpret_cast<AcceptOverlapInfo*>(overlapped);
+        if (accept_info->sock >= 0) {
+            SOCKET handle = accept_info->sock;
+            ::CreateIoCompletionPort(reinterpret_cast<HANDLE>(handle), complete_port_, NULL, 0);
+        }
         {
             std::lock_guard lock { mtx_ };
             completed_tasks_.push_back(std::bind(overlap_info->cb, overlap_info->sock));
@@ -237,6 +240,11 @@ void IOCP::handle_overlap_success(WSAOVERLAPPED* overlapped, int bytes)
     default:
         assert(false);
     }
+}
+
+DWORD IOCP::next_timeout()
+{
+    return 10;
 }
 
 }

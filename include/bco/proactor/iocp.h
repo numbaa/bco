@@ -22,7 +22,7 @@ public:
 
     int accept(int listen_fd, std::function<void(int s)>&& cb);
 
-    bool connect(sockaddr_in addr, std::function<void(int)>&& cb);
+    bool connect(int s, sockaddr_in addr, std::function<void(int)>&& cb);
 
     std::vector<std::function<void()>> drain(uint32_t timeout_ms);
 

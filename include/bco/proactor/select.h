@@ -8,7 +8,7 @@
 #include <functional>
 #include <memory>
 #include <span>
-#include <array>s
+#include <array>
 #include <vector>
 #include <mutex>
 #include <map>
@@ -31,7 +31,6 @@ class Select {
 
 public:
     Select();
-    ~Select();
     int create_fd();
     void start();
     void stop();
@@ -44,8 +43,6 @@ public:
     bool connect(int s, sockaddr_in addr, std::function<void(int)>&& cb);
 
     std::vector<std::function<void()>> drain(uint32_t timeout_ms);
-
-    void attach(int fd) { }
 
 private:
     void select_loop();
