@@ -6,11 +6,14 @@
 #include <span>
 #include <thread>
 #include <mutex>
+#include <bco/proactor.h>
 
 
 namespace bco {
 
-class IOCP {
+namespace net {
+
+class IOCP : public bco::ProactorInterface {
 public:
     IOCP();
     int create_fd();
@@ -24,7 +27,7 @@ public:
 
     bool connect(int s, sockaddr_in addr, std::function<void(int)>&& cb);
 
-    std::vector<std::function<void()>> drain(uint32_t timeout_ms);
+    std::vector<PriorityTask> harvest_completed_tasks() override;
 
 private:
     void iocp_loop();
@@ -34,8 +37,10 @@ private:
 private:
     std::mutex mtx_;
     std::thread harvest_thread_;
-    std::vector<std::function<void()>> completed_tasks_;
+    std::vector<PriorityTask> completed_tasks_;
     ::HANDLE complete_port_;
 };
+
+}
 
 }

@@ -4,7 +4,7 @@
 #include <memory>
 #include <optional>
 
-#include <bco/detail/task.inl>
+#include "task.inl"
 
 namespace bco {
 

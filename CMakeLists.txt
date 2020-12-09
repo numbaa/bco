@@ -8,8 +8,8 @@ if(WIN32)
 add_definitions(-DNOMINMAX)
 #add_compile_options(/await)
 set(PLAT_SPEC
-    "include/bco/proactor/iocp.h"
-    "src/proactor/iocp.cpp"
+    "include/bco/net/proactor/iocp.h"
+    "src/net/proactor/iocp.cpp"
     )
 else()
 add_compile_options(-fcoroutines)
@@ -20,18 +20,22 @@ endif()
 
 add_library(${PROJECT_NAME} STATIC
     ${PLAT_SPEC}
-    "include/bco/detail/task.inl"
     "include/bco/bco.h"
-    "include/bco/executor/simple_executor.h"
-    "include/bco/io.h"
     "include/bco/context.h"
-    "include/bco/task.h"
-    "include/bco/proactor.h"
     "include/bco/executor.h"
+    
+    "include/bco/utils.h"
+
+    "include/bco/coroutine/task.inl"
+    "include/bco/coroutine/task.h"
+    
+    "include/bco/executor/simple_executor.h"
     "src/executor/simple_executor.cpp"
-    "src/proactor/select.cpp"
-    "src/task.cpp"
-  "include/bco/utils.h")
+    
+    "include/bco/net/socket.h"
+    "include/bco/net/proactor/select.h"
+    "src/net/proactor/select.cpp"
+)
 
  if(WIN32)
  target_link_libraries(${PROJECT_NAME}

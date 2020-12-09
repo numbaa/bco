@@ -7,13 +7,13 @@
 
 namespace bco {
 
-void SimpleExecutor::post(std::function<void()>&& func)
+void SimpleExecutor::post(PriorityTask task)
 {
     std::lock_guard<std::mutex> lock { mutex_ };
-    tasks_.push_back(func);
+    tasks_.push_back(task);
 }
 
-void SimpleExecutor::run()
+void SimpleExecutor::start()
 {
     while (true) {
         mutex_.lock();
@@ -32,9 +32,9 @@ void SimpleExecutor::run()
     }
 }
 
-void SimpleExecutor::set_proactor_task_getter(std::function<std::vector<std::function<void()>>()> drain_func)
+void SimpleExecutor::set_proactor_task_getter(std::function<std::vector<PriorityTask>()> func)
 {
-    get_proactor_task_ = drain_func;
+    get_proactor_task_ = func;
 }
 
 } //namespace bco

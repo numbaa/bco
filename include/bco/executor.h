@@ -1,15 +1,15 @@
 #pragma once
 #include <functional>
 #include <vector>
+#include <bco/proactor.h>
 
 namespace bco {
 
-template <typename T>
-concept Executor = requires(T e, std::function<void()>&& func, std::function<std::vector<std::function<void()>>()> getter)
-{
-    e.post(std::move(func));
-    e.run();
-    e.set_proactor_task_getter(getter);
+class ExecutorInterface {
+public:
+    virtual void post(PriorityTask task) = 0;
+    virtual void start() = 0;
+    virtual void set_proactor_task_getter(std::function<std::vector<PriorityTask>()> func) = 0;
 };
 
 }

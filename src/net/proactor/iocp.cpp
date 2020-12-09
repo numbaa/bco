@@ -7,12 +7,14 @@
 #include <array>
 #include <functional>
 #include <thread>
-#include <bco/proactor/iocp.h>
+#include <bco/net/proactor/iocp.h>
 #include <bco/executor.h>
 #include <bco/utils.h>
 #include <iostream>
 
 namespace bco {
+
+namespace net {
 
 constexpr size_t kAcceptBuffLen = sizeof(SOCKADDR_IN) * 2 + 32;
 
@@ -178,7 +180,8 @@ bool IOCP::connect(int s, sockaddr_in addr, std::function<void(int)>&& cb)
     return false;
 }
 
-std::vector<std::function<void()>> IOCP::drain(uint32_t timeout_ms)
+
+std::vector<PriorityTask> net::IOCP::harvest_completed_tasks()
 {
     std::lock_guard lock { mtx_ };
     return std::move(completed_tasks_);
@@ -225,7 +228,7 @@ void IOCP::handle_overlap_success(WSAOVERLAPPED* overlapped, int bytes)
         }
         {
             std::lock_guard lock { mtx_ };
-            completed_tasks_.push_back(std::bind(overlap_info->cb, overlap_info->sock));
+            completed_tasks_.push_back(PriorityTask { 0, std::bind(overlap_info->cb, overlap_info->sock) });
         }
         delete accept_info;
         break;
@@ -233,7 +236,7 @@ void IOCP::handle_overlap_success(WSAOVERLAPPED* overlapped, int bytes)
     case OverlapAction::Receive:
     case OverlapAction::Send: {
         std::lock_guard lock { mtx_ };
-        completed_tasks_.push_back(std::bind(overlap_info->cb, bytes));
+        completed_tasks_.push_back(PriorityTask { 0, std::bind(overlap_info->cb, bytes) });
     }
         delete overlap_info;
         break;
@@ -245,6 +248,8 @@ void IOCP::handle_overlap_success(WSAOVERLAPPED* overlapped, int bytes)
 DWORD IOCP::next_timeout()
 {
     return 10;
+}
+
 }
 
 }

@@ -1,9 +1,11 @@
 #include <cassert>
 #include <thread>
-#include <bco/proactor/select.h>
+#include <bco/net/proactor/select.h>
 #include <bco/utils.h>
 
 namespace bco {
+
+namespace net {
 
 Select::Select()
 {
@@ -27,7 +29,7 @@ void Select::stop()
 {
 }
 
-int Select::read(int s, std::span<std::byte> buff, std::function<void(int length)>&& cb)
+int Select::read(int s, std::span<std::byte> buff, std::function<void(int length)> cb)
 {
     std::lock_guard lock { mtx_ };
     if (s > max_rfd_)
@@ -36,7 +38,7 @@ int Select::read(int s, std::span<std::byte> buff, std::function<void(int length
     return 0;
 }
 
-int Select::write(int s, std::span<std::byte> buff, std::function<void(int length)>&& cb)
+int Select::write(int s, std::span<std::byte> buff, std::function<void(int length)> cb)
 {
     std::lock_guard lock { mtx_ };
     if (s > max_wfd_)
@@ -45,7 +47,7 @@ int Select::write(int s, std::span<std::byte> buff, std::function<void(int lengt
     return 0;
 }
 
-bool Select::connect(int s, sockaddr_in addr, std::function<void(int)>&& cb)
+bool Select::connect(int s, sockaddr_in addr, std::function<void(int)> cb)
 {
     std::lock_guard lock { mtx_ };
     if (s > max_wfd_)
@@ -55,7 +57,7 @@ bool Select::connect(int s, sockaddr_in addr, std::function<void(int)>&& cb)
     return true;
 }
 
-int Select::accept(int s, std::function<void(int s)>&& cb)
+int Select::accept(int s, std::function<void(int s)> cb)
 {
     std::lock_guard lock { mtx_ };
     if (s > max_rfd_)
@@ -132,7 +134,7 @@ void Select::do_accept(SelectTask task)
         set_non_block(static_cast<int>(fd));
         std::lock_guard lock { mtx_ };
         pending_rfds_.erase(task.fd);
-        completed_task_.push_back(std::bind(task.cb, static_cast<int>(fd)));
+        completed_task_.push_back(PriorityTask { 0, std::bind(task.cb, static_cast<int>(fd)) });
         return;
     }
     //do nothing, it will try again
@@ -144,7 +146,7 @@ void Select::do_read(SelectTask task)
     if (bytes >= 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
         std::lock_guard lock { mtx_ };
         pending_rfds_.erase(task.fd);
-        completed_task_.push_back(std::bind(task.cb, bytes));
+        completed_task_.push_back(PriorityTask { 0, std::bind(task.cb, bytes) });
         return;
     }
     //do nothing, it will try again
@@ -157,7 +159,7 @@ void Select::do_write(SelectTask task)
     if (bytes >= 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
         std::lock_guard lock { mtx_ };
         pending_wfds_.erase(task.fd);
-        completed_task_.push_back(std::bind(task.cb, bytes));
+        completed_task_.push_back(PriorityTask { 0, std::bind(task.cb, bytes) });
         return;
     }
     //do nothing, it will try again
@@ -167,7 +169,7 @@ void Select::on_connected(SelectTask task)
 {
     std::lock_guard lock { mtx_ };
     pending_wfds_.erase(task.fd);
-    completed_task_.push_back(std::bind(task.cb, task.fd));
+    completed_task_.push_back(PriorityTask { 0, std::bind(task.cb, task.fd) });
 }
 
 timeval Select::next_timeout()
@@ -175,10 +177,13 @@ timeval Select::next_timeout()
     return timeval {0, 10000};
 }
 
-std::vector<std::function<void()>> Select::drain(uint32_t timeout_ms)
+std::vector<PriorityTask> Select::harvest_completed_tasks()
 {
     std::lock_guard lock { mtx_ };
     return std::move(completed_task_);
+}
+
+
 }
 
 }

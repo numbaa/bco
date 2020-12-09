@@ -13,9 +13,13 @@
 #include <mutex>
 #include <map>
 
+#include <bco/proactor.h>
+
 namespace bco {
 
-class Select {
+namespace net {
+
+class Select : public bco::ProactorInterface {
     enum class Action : uint32_t {
         Read,
         Write,
@@ -34,15 +38,15 @@ public:
     int create_fd();
     void start();
     void stop();
-    int read(int s, std::span<std::byte> buff, std::function<void(int length)>&& cb);
+    int read(int s, std::span<std::byte> buff, std::function<void(int length)> cb);
 
-    int write(int s, std::span<std::byte> buff, std::function<void(int length)>&& cb);
+    int write(int s, std::span<std::byte> buff, std::function<void(int length)> cb);
 
-    int accept(int s, std::function<void(int s)>&& cb);
+    int accept(int s, std::function<void(int s)> cb);
 
-    bool connect(int s, sockaddr_in addr, std::function<void(int)>&& cb);
+    bool connect(int s, sockaddr_in addr, std::function<void(int)> cb);
 
-    std::vector<std::function<void()>> drain(uint32_t timeout_ms);
+    std::vector<PriorityTask> harvest_completed_tasks() override;
 
 private:
     void select_loop();
@@ -63,10 +67,12 @@ private:
     int max_wfd_ { 0 };
     std::map<int, SelectTask> pending_rfds_;
     std::map<int, SelectTask> pending_wfds_;
-    std::vector<std::function<void()>> completed_task_;
+    std::vector<PriorityTask> completed_task_;
     fd_set rfds_;
     fd_set wfds_;
     fd_set efds_;
 };
+
+}
 
 }

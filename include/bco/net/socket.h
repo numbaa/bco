@@ -1,11 +1,31 @@
 #pragma once
+#ifdef _WIN32
+#include <WinSock2.h>
+#else
+#include <>
+#endif  // _WIN32
 #include <cassert>
+#include <cstdint>
+#include <concepts>
+#include <span>
 #include <bco/proactor.h>
-#include <bco/task.h>
 
 namespace bco {
 
-template <Proactor P>
+
+namespace net {
+
+template <typename T>
+concept SocketProactor = requires(T p, int fd, uint32_t timeout_ms, sockaddr_in addr, std::span<std::byte> buff, std::function<void(int length)> cb) {
+    { p.read(fd, buff, cb) } -> std::same_as<int>;
+    { p.write(fd, buff, cb) } -> std::same_as<int>;
+    { p.accept(fd, cb) } -> std::same_as<int>;
+    { p.connect(fd, addr, cb) } -> std::same_as<bool>;
+    { p.harvest_completed_tasks() } -> std::same_as<std::vector<bco::PriorityTask>>;
+    { p.create_fd() } -> std::same_as<int>;
+};
+
+template <SocketProactor P>
 class TcpSocket {
 public:
     static std::tuple<TcpSocket, int> create(P* proactor)
@@ -90,5 +110,7 @@ private:
     P* proactor_;
     int socket_;
 };
+
+}
 
 }
