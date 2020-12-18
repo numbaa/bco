@@ -15,7 +15,7 @@
 template <typename P> requires bco::net::SocketProactor<P>
 class EchoServer : public std::enable_shared_from_this<EchoServer<P>> {
 public:
-    EchoServer(bco::Context* ctx, uint32_t port)
+    EchoServer(bco::Context<P>* ctx, uint32_t port)
         : ctx_(ctx), listen_port_(port)
     {
         //start();
@@ -25,7 +25,7 @@ public:
     {
         ctx_->spawn(std::move([shared_this = this->shared_from_this()]() -> bco::Task<> {
             // todo change nullptr to proactor
-            auto [socket, error] = bco::net::TcpSocket<P>::create(nullptr);
+            auto [socket, error] = bco::net::TcpSocket<P>::create(shared_this->ctx_->socket_proactor());
             if (error < 0) {
                 std::cerr << "Create socket failed with " << error << std::endl;
                 co_return;
@@ -69,7 +69,7 @@ private:
     }
 
 private:
-    bco::Context* ctx_;
+    bco::Context<P>* ctx_;
     uint16_t listen_port_;
 };
 
@@ -82,13 +82,14 @@ void init_winsock()
 int main()
 {
     init_winsock();
-    auto iocp = std::make_unique<bco::net::IOCP>();
+    //auto iocp = std::make_unique<bco::net::IOCP>();
     //iocp->start();
     auto se = std::make_unique<bco::net::Select>();
     se->start();
     auto executor = std::make_unique<bco::SimpleExecutor>();
-    bco::Context ctx { std::move(executor) };
-    ctx.add_proactor(std::move(se));
+    bco::Context<bco::net::Select> ctx;
+    ctx.set_socket_proactor(std::move(se));
+    ctx.set_executor(std::move(executor));
     auto server = std::make_shared<EchoServer<bco::net::Select>>(&ctx, 30000);
     server->start();
     ctx.start();

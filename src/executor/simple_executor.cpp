@@ -21,7 +21,8 @@ void SimpleExecutor::start()
         mutex_.unlock();
         auto proactor_tasks = get_proactor_task_();
         if (old_tasks.empty()) {
-            std::this_thread::yield();
+            //std::this_thread::yield();
+            std::this_thread::sleep_for(std::chrono::milliseconds { 1 });
         }
         for (auto&& task : old_tasks) {
             task();

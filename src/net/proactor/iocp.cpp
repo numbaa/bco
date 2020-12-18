@@ -63,7 +63,7 @@ void IOCP::stop()
 {
 }
 
-int IOCP::read(int s, std::span<std::byte> buff, std::function<void(int length)>&& cb)
+int IOCP::read(int s, std::span<std::byte> buff, std::function<void(int length)> cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
     overlap_info->action = OverlapAction::Receive;
@@ -91,7 +91,7 @@ int IOCP::read(int s, std::span<std::byte> buff, std::function<void(int length)>
     return -1;
 }
 
-int IOCP::write(int s, std::span<std::byte> buff, std::function<void(int length)>&& cb)
+int IOCP::write(int s, std::span<std::byte> buff, std::function<void(int length)> cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
     overlap_info->action = OverlapAction::Send;
@@ -119,7 +119,7 @@ int IOCP::write(int s, std::span<std::byte> buff, std::function<void(int length)
     */
 }
 
-int IOCP::accept(int s, std::function<void(int s)>&& cb)
+int IOCP::accept(int s, std::function<void(int s)> cb)
 {
     AcceptOverlapInfo* overlap_info = new AcceptOverlapInfo;
     overlap_info->action = OverlapAction::Accept;
@@ -159,7 +159,7 @@ LPFN_CONNECTEX GetConnectEx(SOCKET so)
     return fnConnectEx;
 }
 
-bool IOCP::connect(int s, sockaddr_in addr, std::function<void(int)>&& cb)
+bool IOCP::connect(int s, sockaddr_in addr, std::function<void(int)> cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
     overlap_info->action = OverlapAction::Connect;

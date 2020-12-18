@@ -16,12 +16,11 @@ namespace bco {
 namespace net {
 
 template <typename T>
-concept SocketProactor = requires(T p, int fd, uint32_t timeout_ms, sockaddr_in addr, std::span<std::byte> buff, std::function<void(int length)> cb) {
+concept SocketProactor = bco::Proactor<T> && requires(T p, int fd, uint32_t timeout_ms, sockaddr_in addr, std::span<std::byte> buff, std::function<void(int length)> cb) {
     { p.read(fd, buff, cb) } -> std::same_as<int>;
     { p.write(fd, buff, cb) } -> std::same_as<int>;
     { p.accept(fd, cb) } -> std::same_as<int>;
     { p.connect(fd, addr, cb) } -> std::same_as<bool>;
-    { p.harvest_completed_tasks() } -> std::same_as<std::vector<bco::PriorityTask>>;
     { p.create_fd() } -> std::same_as<int>;
 };
 
