@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #ifdef _WIN32
 #include <WinSock2.h>
 #else // _WIN32
@@ -14,6 +14,7 @@
 #include <map>
 
 #include <bco/proactor.h>
+#include <bco/net/event.h>
 
 namespace bco {
 
@@ -49,6 +50,7 @@ public:
 
 public:
     Select();
+    ~Select();
     int create_fd();
     void start();
     void stop();
@@ -75,6 +77,7 @@ private:
 
 
 private:
+    Event stop_event_;
     std::mutex mtx_;
     std::thread harvest_thread_;
     int max_rfd_ { 0 };

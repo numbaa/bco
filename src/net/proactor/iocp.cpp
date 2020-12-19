@@ -45,6 +45,12 @@ IOCP::IOCP()
     this->complete_port_ = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 1);
 }
 
+IOCP::~IOCP()
+{
+    harvest_thread_.join();
+    CloseHandle(complete_port_);
+}
+
 int IOCP::create_fd()
 {
     SOCKET fd = ::socket(AF_INET, SOCK_STREAM, 0);
@@ -61,6 +67,7 @@ void IOCP::start()
 
 void IOCP::stop()
 {
+    ::PostQueuedCompletionStatus(complete_port_, 0, 0, nullptr);
 }
 
 int IOCP::read(int s, std::span<std::byte> buff, std::function<void(int length)> cb)
@@ -195,6 +202,9 @@ void IOCP::iocp_loop()
         ULONG_PTR completion_key;
         DWORD timeout = next_timeout();
         int ret = ::GetQueuedCompletionStatus(complete_port_, &bytes, &completion_key, &overlapped, timeout);
+        if (bytes == 0 && completion_key == 0 && overlapped == nullptr) {
+            return;
+        }
         if (ret == 0 && overlapped == 0) {
             auto err = ::GetLastError();
             switch (err) {

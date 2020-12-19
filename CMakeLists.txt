@@ -35,7 +35,7 @@ add_library(${PROJECT_NAME} STATIC
     "include/bco/net/socket.h"
     "include/bco/net/proactor/select.h"
     "src/net/proactor/select.cpp"
-)
+ "include/bco/net/event.h" "src/net/event.cpp")
 
  if(WIN32)
  target_link_libraries(${PROJECT_NAME}

@@ -9,6 +9,13 @@ namespace net {
 
 Select::Select()
 {
+    max_rfd_ = std::max(stop_event_.fd(), max_rfd_);
+    pending_rfds_[stop_event_.fd()] = SelectTask { stop_event_.fd(), Action::Read, std::span<std::byte> {}, nullptr };
+}
+
+Select::~Select()
+{
+    harvest_thread_.join();
 }
 
 int Select::create_fd()
@@ -27,6 +34,7 @@ void Select::start()
 
 void Select::stop()
 {
+    stop_event_.emit();
 }
 
 int Select::read(int s, std::span<std::byte> buff, std::function<void(int length)> cb)
@@ -117,6 +125,9 @@ void Select::select_loop()
         if (ret < 0) {
             //TODO error handling
             continue;
+        }
+        if (FD_ISSET(stop_event_.fd(), &rfds)) {
+            return;
         }
         on_io_event(reading_fds, rfds);
         on_io_event(writing_fds, wfds);
