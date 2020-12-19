@@ -5,16 +5,17 @@
 #include <netinet/in.h>
 #endif
 
-#include <functional>
-#include <memory>
-#include <span>
 #include <array>
-#include <vector>
-#include <mutex>
+#include <functional>
 #include <map>
+#include <memory>
+#include <mutex>
+#include <span>
+#include <thread>
+#include <vector>
 
-#include <bco/proactor.h>
 #include <bco/net/event.h>
+#include <bco/proactor.h>
 
 namespace bco {
 
@@ -67,14 +68,13 @@ public:
 private:
     void select_loop();
     timeval next_timeout();
-    void do_accept(SelectTask task);
-    void do_read(SelectTask task);
-    void do_write(SelectTask task);
-    void on_connected(SelectTask task);
+    void do_accept(const SelectTask& task);
+    void do_read(const SelectTask& task);
+    void do_write(const SelectTask& task);
+    void on_connected(const SelectTask& task);
     void on_io_event(const std::map<int, SelectTask>& tasks, const fd_set& fds);
     std::tuple<std::map<int, SelectTask>, std::map<int, SelectTask>> get_pending_io();
     static void prepare_fd_set(const std::map<int, SelectTask>& tasks, fd_set& fds);
-
 
 private:
     Event stop_event_;
@@ -90,6 +90,6 @@ private:
     fd_set efds_;
 };
 
-}
+} // namespace net
 
-}
+} // namespace bco

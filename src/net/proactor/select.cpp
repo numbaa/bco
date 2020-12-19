@@ -1,5 +1,7 @@
 #include <cassert>
+
 #include <thread>
+
 #include <bco/net/proactor/select.h>
 #include <bco/utils.h>
 
@@ -29,7 +31,7 @@ int Select::create_fd()
 
 void Select::start()
 {
-    harvest_thread_ = std::move(std::thread {std::bind(&Select::select_loop, this)});
+    harvest_thread_ = std::move(std::thread { std::bind(&Select::select_loop, this) });
 }
 
 void Select::stop()
@@ -51,7 +53,7 @@ int Select::write(int s, std::span<std::byte> buff, std::function<void(int lengt
     std::lock_guard lock { mtx_ };
     if (s > max_wfd_)
         max_wfd_ = s;
-    pending_wfds_[s]= SelectTask{ s, Action::Write, buff, cb };
+    pending_wfds_[s] = SelectTask { s, Action::Write, buff, cb };
     return 0;
 }
 
@@ -61,7 +63,7 @@ bool Select::connect(int s, sockaddr_in addr, std::function<void(int)> cb)
     if (s > max_wfd_)
         max_wfd_ = s;
     ::connect(s, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
-    pending_wfds_[s] = SelectTask {s, Action::Connect, std::span<std::byte> {}, cb};
+    pending_wfds_[s] = SelectTask { s, Action::Connect, std::span<std::byte> {}, cb };
     return true;
 }
 
@@ -107,13 +109,13 @@ void Select::prepare_fd_set(const std::map<int, SelectTask>& tasks, fd_set& fds)
 std::tuple<std::map<int, Select::SelectTask>, std::map<int, Select::SelectTask>> Select::get_pending_io()
 {
     std::lock_guard lock { mtx_ };
-    return {pending_rfds_, pending_wfds_};
+    return { pending_rfds_, pending_wfds_ };
 }
 
 void Select::select_loop()
 {
     while (true) {
-        auto [ reading_fds, writing_fds ] = get_pending_io();
+        auto [reading_fds, writing_fds] = get_pending_io();
         fd_set rfds, wfds, efds;
         FD_ZERO(&rfds);
         FD_ZERO(&wfds);
@@ -121,7 +123,7 @@ void Select::select_loop()
         prepare_fd_set(reading_fds, rfds);
         prepare_fd_set(writing_fds, wfds);
         timeval timeout = next_timeout();
-        int ret = ::select(std::max(max_rfd_, max_wfd_)+1, &rfds, &wfds, &efds, &timeout);
+        int ret = ::select(std::max(max_rfd_, max_wfd_) + 1, &rfds, &wfds, &efds, &timeout);
         if (ret < 0) {
             //TODO error handling
             continue;
@@ -134,13 +136,11 @@ void Select::select_loop()
     }
 }
 
-void Select::do_accept(SelectTask task)
+void Select::do_accept(const SelectTask& task)
 {
     sockaddr_in addr;
     int len;
     auto fd = ::accept(task.fd, nullptr, 0);
-    auto e = errno;
-    auto e2 = WSAGetLastError();
     if (fd >= 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
         set_non_block(static_cast<int>(fd));
         std::lock_guard lock { mtx_ };
@@ -151,7 +151,7 @@ void Select::do_accept(SelectTask task)
     //do nothing, it will try again
 }
 
-void Select::do_read(SelectTask task)
+void Select::do_read(const SelectTask& task)
 {
     int bytes = ::recv(task.fd, reinterpret_cast<char*>(task.buff.data()), task.buff.size(), 0);
     if (bytes >= 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
@@ -163,8 +163,7 @@ void Select::do_read(SelectTask task)
     //do nothing, it will try again
 }
 
-
-void Select::do_write(SelectTask task)
+void Select::do_write(const SelectTask& task)
 {
     int bytes = ::send(task.fd, reinterpret_cast<const char*>(task.buff.data()), task.buff.size(), 0);
     if (bytes >= 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
@@ -176,7 +175,7 @@ void Select::do_write(SelectTask task)
     //do nothing, it will try again
 }
 
-void Select::on_connected(SelectTask task)
+void Select::on_connected(const SelectTask& task)
 {
     std::lock_guard lock { mtx_ };
     pending_wfds_.erase(task.fd);
@@ -185,7 +184,7 @@ void Select::on_connected(SelectTask task)
 
 timeval Select::next_timeout()
 {
-    return timeval {0, 10000};
+    return timeval { 0, 10000 };
 }
 
 std::vector<PriorityTask> Select::harvest_completed_tasks()
@@ -194,7 +193,6 @@ std::vector<PriorityTask> Select::harvest_completed_tasks()
     return std::move(completed_task_);
 }
 
+} // namespace net
 
-}
-
-}
+} // namespace bco

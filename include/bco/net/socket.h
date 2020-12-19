@@ -2,26 +2,42 @@
 #ifdef _WIN32
 #include <WinSock2.h>
 #else
-#include <>
-#endif  // _WIN32
-#include <cassert>
-#include <cstdint>
-#include <concepts>
-#include <span>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#endif // _WIN32
 #include <bco/proactor.h>
+#include <cassert>
+#include <concepts>
+#include <cstdint>
+#include <span>
 
 namespace bco {
-
 
 namespace net {
 
 template <typename T>
-concept SocketProactor = bco::Proactor<T> && requires(T p, int fd, uint32_t timeout_ms, sockaddr_in addr, std::span<std::byte> buff, std::function<void(int length)> cb) {
-    { p.read(fd, buff, cb) } -> std::same_as<int>;
-    { p.write(fd, buff, cb) } -> std::same_as<int>;
-    { p.accept(fd, cb) } -> std::same_as<int>;
-    { p.connect(fd, addr, cb) } -> std::same_as<bool>;
-    { p.create_fd() } -> std::same_as<int>;
+concept SocketProactor = bco::Proactor<T>&& requires(T p, int fd, uint32_t timeout_ms, sockaddr_in addr, std::span<std::byte> buff, std::function<void(int length)> cb)
+{
+    {
+        p.read(fd, buff, cb)
+    }
+    ->std::same_as<int>;
+    {
+        p.write(fd, buff, cb)
+    }
+    ->std::same_as<int>;
+    {
+        p.accept(fd, cb)
+    }
+    ->std::same_as<int>;
+    {
+        p.connect(fd, addr, cb)
+    }
+    ->std::same_as<bool>;
+    {
+        p.create_fd()
+    }
+    ->std::same_as<int>;
 };
 
 template <SocketProactor P>
@@ -110,6 +126,6 @@ private:
     int socket_;
 };
 
-}
+} // namespace net
 
-}
+} // namespace bco

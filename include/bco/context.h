@@ -19,6 +19,7 @@ public:
     {
         auto tasks = T::GetterSetter::proactor()->harvest_completed_tasks();
         std::ranges::copy(Context<Types...>::get_proactor_tasks(), std::back_inserter(tasks));
+        return tasks;
     }
 };
 

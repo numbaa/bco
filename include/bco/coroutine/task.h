@@ -14,6 +14,7 @@ class Task;
 template <typename T>
 class Task {
 public:
+    friend class detail::PromiseType<Task, T>;
     using promise_type = detail::PromiseType<Task, T>;
     auto operator co_await()
     {
@@ -26,7 +27,6 @@ private:
     {
     }
     std::coroutine_handle<promise_type> coroutine_;
-    friend class promise_type;
 };
 
 class RootTask : public std::suspend_never {
@@ -117,6 +117,5 @@ public:
 private:
     std::shared_ptr<SharedContext> ctx_;
 };
-
 
 } //namespace bco

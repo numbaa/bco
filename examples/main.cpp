@@ -1,22 +1,27 @@
+#include <arpa/inet.h>
 #include <array>
-#include <string>
+
 #include <iostream>
 #include <memory>
+#include <string>
+
+#ifdef _WIN32
+//#include <bco/net/proactor/iocp.h>
+#endif
 #include <bco/bco.h>
-#include <bco/proactor.h>
 #include <bco/context.h>
-#include <bco/net/socket.h>
-#include <bco/net/proactor/iocp.h>
-#include <bco/net/proactor/select.h>
 #include <bco/executor.h>
 #include <bco/executor/simple_executor.h>
+#include <bco/net/proactor/select.h>
+#include <bco/net/socket.h>
+#include <bco/proactor.h>
 
-
-template <typename P> requires bco::net::SocketProactor<P>
-class EchoServer : public std::enable_shared_from_this<EchoServer<P>> {
+template <typename P>
+requires bco::net::SocketProactor<P> class EchoServer : public std::enable_shared_from_this<EchoServer<P>> {
 public:
     EchoServer(bco::Context<P>* ctx, uint32_t port)
-        : ctx_(ctx), listen_port_(port)
+        : ctx_(ctx)
+        , listen_port_(port)
     {
         //start();
     }
@@ -30,11 +35,10 @@ public:
                 std::cerr << "Create socket failed with " << error << std::endl;
                 co_return;
             }
-            sockaddr_in server_addr;
-            ::memset(&server_addr, 0, sizeof(server_addr));
+            sockaddr_in server_addr {};
             server_addr.sin_family = AF_INET;
             server_addr.sin_port = ::htons(shared_this->listen_port_);
-            server_addr.sin_addr.S_un.S_addr = ::inet_addr("0.0.0.0");
+            inet_aton("0.0.0.0", &server_addr.sin_addr);
             int ret = socket.bind(server_addr);
             if (ret != 0) {
                 std::cerr << "bind: " << ret << std::endl;
@@ -75,8 +79,10 @@ private:
 
 void init_winsock()
 {
+#ifdef _WIN32
     WSADATA wsdata;
     (void)WSAStartup(MAKEWORD(2, 2), &wsdata);
+#endif
 }
 
 int main()
