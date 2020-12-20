@@ -4,6 +4,7 @@
 #else
 #include <fcntl.h>
 #endif
+#include <thread>
 
 
 namespace bco {
@@ -29,5 +30,15 @@ inline auto call_with_lock(Function&& func, Args&&... args) -> decltype(func(std
     return func(args...);
 }
 */
+
+inline bool is_current_thread(const std::thread& th)
+{
+    return std::this_thread::get_id() == th.get_id();
+}
+
+inline bool should_try_again()
+{
+    return errno == EAGAIN || errno == EWOULDBLOCK;
+}
 
 }

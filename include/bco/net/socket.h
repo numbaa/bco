@@ -66,11 +66,9 @@ public:
             task.set_result(std::forward<int>(length));
             task.resume();
         });
-        /*
         if (size > 0) {
             task.set_result(std::forward<int>(size));
         }
-        */
         return task;
     }
     [[nodiscard]] ProactorTask<int> write(std::span<std::byte> buffer)
@@ -82,11 +80,9 @@ public:
             task.set_result(std::forward<int>(length));
             task.resume();
         });
-        /*
         if (size > 0) {
             task.set_result(std::forward<int>(size));
         }
-        */
         return task;
     }
     [[nodiscard]] ProactorTask<TcpSocket> accept()
