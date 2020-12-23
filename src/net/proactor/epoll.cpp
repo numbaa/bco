@@ -32,6 +32,15 @@ Epoll::~Epoll()
     harvest_thread_.join();
 }
 
+int Epoll::create_fd()
+{
+    auto fd = ::socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0)
+        return static_cast<int>(fd);
+    set_non_block(static_cast<int>(fd));
+    return static_cast<int>(fd);
+}
+
 void Epoll::start()
 {
     harvest_thread_ = std::move(std::thread { std::bind(&Epoll::epoll_loop, this) });
@@ -64,6 +73,17 @@ int Epoll::read(int s, std::span<std::byte> buff, std::function<void(int length)
 
 int Epoll::write(int s, std::span<std::byte> buff, std::function<void(int length)> cb)
 {
+    /*
+    if (is_current_thread(harvest_thread_)) {
+        int bytes = ::write(s, reinterpret_cast<void*>(buff.data()), buff.size());
+        if (bytes < 0 && should_try_again()) {
+            // try again
+        } else {
+            //error or success
+            return bytes;
+        }
+    }
+    */
     std::lock_guard lock { mtx_ };
     auto it = pending_tasks_.find(s);
     if (it != pending_tasks_.cend()) {
@@ -83,14 +103,12 @@ int Epoll::write(int s, std::span<std::byte> buff, std::function<void(int length
 
 int Epoll::accept(int s, std::function<void(int s)> cb)
 {
-    // FIXME: n
-    std::lock_guard lock { mtx_ };
-
     EpollTask task {};
     task.event.data.fd = s;
     task.event.events = EPOLLIN; //level trigger
     task.action |= Action::Accept;
     task.read.emplace(std::span<std::byte> {}, cb);
+    std::lock_guard lock {mtx_};
     pending_tasks_[s] = task;
     return 0;
 }
@@ -105,6 +123,7 @@ bool Epoll::connect(int s, sockaddr_in addr, std::function<void(int)> cb)
     task.event.events = EPOLLOUT; //level triger
     task.action |= Action::Connect;
     task.write.emplace(std::span<std::byte> {}, cb);
+    std::lock_guard lock {mtx_};
     pending_tasks_[s] = task;
     return true;
 }
@@ -120,10 +139,43 @@ std::map<int, Epoll::EpollTask> Epoll::get_pending_tasks()
     return std::move(pending_tasks_);
 }
 
-void Epoll::submit_tasks(const std::map<int, Epoll::EpollTask>& pending_tasks)
+void Epoll::submit_tasks(std::map<int, Epoll::EpollTask>& pending_tasks)
 {
-    for (auto& task : pending_tasks_) {
+    //do some validation?
+    for (auto& task : pending_tasks) {
         auto it = flying_tasks_.find(task.second.event.data.fd);
+        if (it != flying_tasks_.cend()) {
+            if ((task.second.action & Action::Read) != Action::None) {
+                it->second.action |= Action::Read;
+                it->second.event.events |= EPOLLIN;
+                it->second.read = task.second.read;
+            }
+            if ((task.second.action & Action::Write) != Action::None) {
+                it->second.action |= Action::Write;
+                it->second.event.events |= EPOLLOUT;
+                it->second.write = task.second.write;
+                //continue;
+            } else if ((task.second.action & Action::Accept) != Action::None) {
+                it->second.action |= Action::Read;
+                it->second.event.events |= EPOLLIN;
+                it->second.read = task.second.read;
+                //continue;
+            } else if ((task.second.action & Action::Connect) != Action::None) {
+                it->second.action |= Action::Write;
+                it->second.event.events |= EPOLLOUT;
+                it->second.write = task.second.write;
+            }
+            int ret = epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, task.second.event.data.fd, &task.second.event);
+            if (ret < 0) {
+                //error handling
+            }
+        } else {
+            flying_tasks_[task.second.event.data.fd] = task.second;
+            int ret = epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, task.second.event.data.fd, &task.second.event);
+            if (ret < 0) {
+                //error handling
+            }
+        }
     }
 }
 
@@ -136,8 +188,9 @@ void Epoll::epoll_loop()
         submit_tasks(pending_tasks);
         int timeout_ms = next_timeout();
         int count = epoll_wait(epoll_fd_, events.data(), events.size(), timeout_ms);
-        if (count < 0 && errno != EINTR)
+        if (count < 0 && errno != EINTR) {
             return;
+        }
         for (int i = 0; i < count; i++) {
             if (events[i].data.fd == exit_fd_)
                 return;
@@ -199,6 +252,14 @@ void Epoll::do_accept(EpollTask& task)
     if (fd >= 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
         set_non_block(fd);
         std::lock_guard lock { mtx_ };
+        uint32_t epollin = EPOLLIN;
+        task.event.events &= ~epollin;
+        int ret = ::epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, task.event.data.fd, &(task.event));
+        if (ret < 0) {
+            //TODO: error handling
+            //completed_task_.push_back();
+            return;
+        }
         completed_task_.push_back(PriorityTask { 0, std::bind(ioitem.cb, fd) });
     }
 }
@@ -206,7 +267,15 @@ void Epoll::do_accept(EpollTask& task)
 void Epoll::on_connected(EpollTask& task)
 {
     std::lock_guard lock { mtx_ };
-    completed_task_.push_back(PriorityTask { 0, std::bind(task.write.value().cb, task.event.data.fd) });
+    uint32_t epollout = EPOLLOUT;
+    task.event.events &= ~epollout;
+    int ret = ::epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, task.event.data.fd, &(task.event));
+    if (ret < 0) {
+        //TODO: error handling
+        //completed_task_.push_back();
+        return;
+    }
+    completed_task_.push_back(PriorityTask { 0, std::bind(task.write.value().cb, static_cast<int>(task.event.data.fd)) });
 }
 
 void Epoll::do_read(EpollTask& task)
@@ -225,6 +294,12 @@ void Epoll::do_read(EpollTask& task)
         }
         completed_task_.push_back(PriorityTask { 0, std::bind(ioitem.cb, bytes) });
     }
+}
+
+std::vector<PriorityTask> Epoll::harvest_completed_tasks()
+{
+    std::lock_guard lock { mtx_ };
+    return std::move(completed_task_);
 }
 
 } // namespace net

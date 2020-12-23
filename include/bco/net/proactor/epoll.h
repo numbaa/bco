@@ -68,7 +68,7 @@ public:
 
 private:
     std::map<int, EpollTask> get_pending_tasks();
-    void submit_tasks(const std::map<int, EpollTask>& pending_tasks);
+    void submit_tasks(std::map<int, EpollTask>& pending_tasks);
     void epoll_loop();
     int next_timeout();
     void on_io_event(const epoll_event& event);
@@ -87,26 +87,26 @@ private:
     std::vector<PriorityTask> completed_task_;
 };
 
-Epoll::Action operator|(const Epoll::Action& lhs, const Epoll::Action& rhs)
+inline Epoll::Action operator|(const Epoll::Action& lhs, const Epoll::Action& rhs)
 {
     return static_cast<Epoll::Action>(
                 static_cast<std::underlying_type<Epoll::Action>::type>(lhs)
                 | static_cast<std::underlying_type<Epoll::Action>::type>(rhs));
 }
 
-Epoll::Action operator&(const Epoll::Action& lhs, const Epoll::Action& rhs)
+inline Epoll::Action operator&(const Epoll::Action& lhs, const Epoll::Action& rhs)
 {
     return static_cast<Epoll::Action>(
                 static_cast<std::underlying_type<Epoll::Action>::type>(lhs)
                 & static_cast<std::underlying_type<Epoll::Action>::type>(rhs));
 }
 
-Epoll::Action& operator|=(Epoll::Action& lhs, const Epoll::Action& rhs)
+inline Epoll::Action& operator|=(Epoll::Action& lhs, const Epoll::Action& rhs)
 {
     return lhs = lhs | rhs;
 }
 
-Epoll::Action& operator&=(Epoll::Action& lhs, const Epoll::Action& rhs)
+inline Epoll::Action& operator&=(Epoll::Action& lhs, const Epoll::Action& rhs)
 {
     return lhs = lhs & rhs;
 }

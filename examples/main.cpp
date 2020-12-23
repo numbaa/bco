@@ -13,6 +13,7 @@
 #include <bco/executor.h>
 #include <bco/executor/simple_executor.h>
 #include <bco/net/proactor/select.h>
+#include <bco/net/proactor/epoll.h>
 #include <bco/net/socket.h>
 #include <bco/proactor.h>
 
@@ -90,13 +91,15 @@ int main()
     init_winsock();
     //auto iocp = std::make_unique<bco::net::IOCP>();
     //iocp->start();
-    auto se = std::make_unique<bco::net::Select>();
-    se->start();
+    //auto se = std::make_unique<bco::net::Select>();
+    //se->start();
+    auto epoll = std::make_unique<bco::net::Epoll>();
+    epoll->start();
     auto executor = std::make_unique<bco::SimpleExecutor>();
-    bco::Context<bco::net::Select> ctx;
-    ctx.set_socket_proactor(std::move(se));
+    bco::Context<bco::net::Epoll> ctx;
+    ctx.set_socket_proactor(std::move(epoll));
     ctx.set_executor(std::move(executor));
-    auto server = std::make_shared<EchoServer<bco::net::Select>>(&ctx, 30000);
+    auto server = std::make_shared<EchoServer<bco::net::Epoll>>(&ctx, 30000);
     server->start();
     ctx.start();
     return 0;
