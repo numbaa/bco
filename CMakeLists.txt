@@ -38,7 +38,7 @@ add_library(${PROJECT_NAME} STATIC
     "include/bco/net/proactor/select.h"
     "src/net/proactor/select.cpp"
     "include/bco/net/event.h"
-    "src/net/event.cpp")
+    "src/net/event.cpp" "include/bco/coroutine/cofunc.h")
 
  if(WIN32)
  target_link_libraries(${PROJECT_NAME}
