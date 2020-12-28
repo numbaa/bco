@@ -17,6 +17,7 @@ namespace bco {
 namespace net {
 
 constexpr size_t kAcceptBuffLen = sizeof(SOCKADDR_IN) * 2 + 32;
+constexpr ULONG_PTR kExitKey = 0xffeeddcc;
 
 enum class OverlapAction {
     Unknown,
@@ -67,7 +68,7 @@ void IOCP::start()
 
 void IOCP::stop()
 {
-    ::PostQueuedCompletionStatus(complete_port_, 0, 0, nullptr);
+    ::PostQueuedCompletionStatus(complete_port_, 0, kExitKey, nullptr);
 }
 
 int IOCP::read(int s, std::span<std::byte> buff, std::function<void(int length)> cb)
@@ -202,7 +203,7 @@ void IOCP::iocp_loop()
         ULONG_PTR completion_key;
         DWORD timeout = next_timeout();
         int ret = ::GetQueuedCompletionStatus(complete_port_, &bytes, &completion_key, &overlapped, timeout);
-        if (bytes == 0 && completion_key == 0 && overlapped == nullptr) {
+        if (bytes == 0 && completion_key == kExitKey && overlapped == nullptr) {
             return;
         }
         if (ret == 0 && overlapped == 0) {

@@ -1,21 +1,22 @@
-#include <arpa/inet.h>
 #include <array>
-
 #include <iostream>
 #include <memory>
 #include <string>
 
-#ifdef _WIN32
-//#include <bco/net/proactor/iocp.h>
-#endif
 #include <bco/bco.h>
 #include <bco/context.h>
 #include <bco/executor.h>
 #include <bco/executor/simple_executor.h>
 #include <bco/net/proactor/select.h>
-#include <bco/net/proactor/epoll.h>
 #include <bco/net/socket.h>
 #include <bco/proactor.h>
+
+#ifdef _WIN32
+#include <bco/net/proactor/iocp.h>
+#else
+#include <arpa/inet.h>
+#include <bco/net/proactor/epoll.h>
+#endif
 
 template <typename P>
 requires bco::net::SocketProactor<P> class EchoServer : public std::enable_shared_from_this<EchoServer<P>> {
@@ -39,7 +40,11 @@ public:
             sockaddr_in server_addr {};
             server_addr.sin_family = AF_INET;
             server_addr.sin_port = ::htons(shared_this->listen_port_);
+#ifdef _WIN32
+            server_addr.sin_addr.S_un.S_addr = inet_addr("0.0.0.0");
+#else
             inet_aton("0.0.0.0", &server_addr.sin_addr);
+#endif
             int ret = socket.bind(server_addr);
             if (ret != 0) {
                 std::cerr << "bind: " << ret << std::endl;
@@ -89,17 +94,17 @@ void init_winsock()
 int main()
 {
     init_winsock();
-    //auto iocp = std::make_unique<bco::net::IOCP>();
-    //iocp->start();
+    auto iocp = std::make_unique<bco::net::IOCP>();
+    iocp->start();
     //auto se = std::make_unique<bco::net::Select>();
     //se->start();
-    auto epoll = std::make_unique<bco::net::Epoll>();
-    epoll->start();
+    //auto epoll = std::make_unique<bco::net::Epoll>();
+    //epoll->start();
     auto executor = std::make_unique<bco::SimpleExecutor>();
-    bco::Context<bco::net::Epoll> ctx;
-    ctx.set_socket_proactor(std::move(epoll));
+    bco::Context<bco::net::IOCP> ctx;
+    ctx.set_socket_proactor(std::move(iocp));
     ctx.set_executor(std::move(executor));
-    auto server = std::make_shared<EchoServer<bco::net::Epoll>>(&ctx, 30000);
+    auto server = std::make_shared<EchoServer<bco::net::IOCP>>(&ctx, 30000);
     server->start();
     ctx.start();
     return 0;

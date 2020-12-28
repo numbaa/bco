@@ -23,7 +23,11 @@ Event::Event()
     set_non_block(fd_listen_);
     set_non_block(fd_connect_);
     addr_.sin_family = AF_INET;
+    #ifdef _WIN32
+    addr_.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
+    #else
     inet_aton("127.0.0.1", &addr_.sin_addr);
+    #endif
     int ret = ::bind(fd_listen_, reinterpret_cast<sockaddr*>(&addr_), sizeof(addr_));
     if (ret < 0)
         throw NetworkException { "bind failed" };
