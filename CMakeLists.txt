@@ -30,6 +30,7 @@ add_library(${PROJECT_NAME} STATIC
 
     "include/bco/coroutine/task.inl"
     "include/bco/coroutine/task.h"
+    "include/bco/coroutine/cofunc.h"
     
     "include/bco/executor/simple_executor.h"
     "src/executor/simple_executor.cpp"
@@ -38,7 +39,8 @@ add_library(${PROJECT_NAME} STATIC
     "include/bco/net/proactor/select.h"
     "src/net/proactor/select.cpp"
     "include/bco/net/event.h"
-    "src/net/event.cpp" "include/bco/coroutine/cofunc.h")
+    "src/net/event.cpp"
+     "src/executor.cpp")
 
  if(WIN32)
  target_link_libraries(${PROJECT_NAME}

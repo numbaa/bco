@@ -10,6 +10,7 @@
 #include <bco/net/proactor/select.h>
 #include <bco/net/socket.h>
 #include <bco/proactor.h>
+#include <bco/coroutine/cofunc.h>
 
 #ifdef _WIN32
 #include <bco/net/proactor/iocp.h>

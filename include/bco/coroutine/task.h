@@ -59,7 +59,7 @@ public:
     };
 };
 
-template <typename T>
+template <typename T = void>
 class ProactorTask {
     struct SharedContext {
         std::optional<T> result_;
@@ -114,7 +114,7 @@ public:
     void await_resume() noexcept { }
     void resume() { ctx_->caller_coroutine_.resume(); }
 
-private:
+protected:
     std::shared_ptr<SharedContext> ctx_;
 };
 
