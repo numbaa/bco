@@ -5,9 +5,15 @@
 #include <bco/net/proactor/select.h>
 #include <bco/utils.h>
 
+#include <bco/net/tcp.h>
+#include <bco/net/udp.h>
+
 namespace bco {
 
 namespace net {
+
+TcpSocket<Select> __instance_select_tcp;
+UdpSocket<Select> __instance_select_udp;
 
 Select::Select()
 {

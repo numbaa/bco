@@ -7,9 +7,15 @@
 #include <bco/net/proactor/epoll.h>
 #include <bco/utils.h>
 
+#include <bco/net/tcp.h>
+#include <bco/net/udp.h>
+
 namespace bco {
 
 namespace net {
+
+TcpSocket<Epoll> __instance_epoll_tcp;
+UdpSocket<Epoll> __instance_epoll_udp;
 
 Epoll::Epoll()
 {

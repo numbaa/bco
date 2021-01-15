@@ -1,20 +1,28 @@
 #include <WinSock2.h>
 #include <MSWSock.h>
+
 #include <cassert>
 #include <cstdint>
+
 #include <chrono>
 #include <vector>
 #include <array>
 #include <functional>
 #include <thread>
+
 #include <bco/net/proactor/iocp.h>
 #include <bco/executor.h>
 #include <bco/utils.h>
-#include <iostream>
+
+#include <bco/net/tcp.h>
+#include <bco/net/udp.h>
 
 namespace bco {
 
 namespace net {
+
+TcpSocket<IOCP> __instance_iocp_tcp;
+UdpSocket<IOCP> __instance_iocp_udp;
 
 constexpr size_t kAcceptBuffLen = sizeof(SOCKADDR_IN) * 2 + 32;
 constexpr ULONG_PTR kExitKey = 0xffeeddcc;
