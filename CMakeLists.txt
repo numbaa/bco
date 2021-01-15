@@ -36,6 +36,7 @@ add_library(${PROJECT_NAME} STATIC
     "src/executor/simple_executor.cpp"
     
     "include/bco/net/socket.h"
+    "include/bco/net/udp.h"
     "include/bco/net/proactor/select.h"
     "src/net/proactor/select.cpp"
     "include/bco/net/event.h"

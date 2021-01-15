@@ -9,6 +9,7 @@
 #include <bco/executor/simple_executor.h>
 #include <bco/net/proactor/select.h>
 #include <bco/net/socket.h>
+#include <bco/net/udp.h>
 #include <bco/proactor.h>
 #include <bco/coroutine/cofunc.h>
 
