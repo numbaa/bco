@@ -58,15 +58,15 @@ auto sleep_for(std::chrono::duration<Rep, Period> duration)
     return DelayTask { get_current_executor(), duration };
 }
 
-template <typename Function, typename... Args>
-auto run_with(ExecutorInterface* executor, Function func, Args&&... args)
+template <typename Callable>
+auto run_with(ExecutorInterface* executor, Callable&& func)
 {
-    class ExecutorTask : public ProactorTask<std::invoke_result<Function, Args...>> {
+    class ExecutorTask : public ProactorTask<std::invoke_result<Callable>> {
     public:
         ExecutorTask(
             ExecutorInterface* current_executor,
             ExecutorInterface* target_executor,
-            std::function<std::invoke_result<Function, Args...>()> func)
+            Callable&& func)
             : initial_executor_(current_executor)
             , target_executor_(target_executor)
             , func_(func)
@@ -91,10 +91,9 @@ auto run_with(ExecutorInterface* executor, Function func, Args&&... args)
     private:
         ExecutorInterface* initial_executor_;
         ExecutorInterface* target_executor_;
-        //any other way?
-        std::function<std::invoke_result<Function, Args...>()> func_;
+        Callable func_;
     };
-    return ExecutorTask {};
+    return ExecutorTask { get_current_executor(), executor, func };
 }
 
 }
