@@ -39,7 +39,7 @@ ProactorTask<int> UdpSocket<P>::recv(std::span<std::byte> buffer)
 }
 
 template <SocketProactor P>
-ProactorTask<std::tuple<int, SocketAddress>> UdpSocket<P>::recvfrom(std::span<::byte> buffer)
+ProactorTask<std::tuple<int, Address>> UdpSocket<P>::recvfrom(std::span<::byte> buffer)
 {
     ProactorTask<std::tuple<int, SocketAddress>> task;
     auto [size, remote_addr] = proactor_->recvfrom(socket_, buffer, [task](int length, const sockaddr_storage& remote_addr) mutable {
@@ -60,13 +60,13 @@ int UdpSocket<P>::send(std::span<std::byte> buffer)
 }
 
 template <SocketProactor P>
-int UdpSocket<P>::sendto(std::span<std::byte> buffer, const SocketAddress& addr)
+int UdpSocket<P>::sendto(std::span<std::byte> buffer, const Address& addr)
 {
     return proactor_->sendto(buffer, addr.to_storage());
 }
 
 template <SocketProactor P>
-int UdpSocket<P>::bind(const SocketAddress& addr)
+int UdpSocket<P>::bind(const Address& addr)
 {
     return ::bind(socket_, reinterpret_cast<const sockaddr*>(&addr.to_storage()), sizeof(sockaddr_storage));
 }

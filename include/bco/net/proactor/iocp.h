@@ -1,4 +1,5 @@
 #pragma once
+#include <WinSock2.h>
 #include <Windows.h>
 #include <functional>
 #include <memory>
@@ -6,7 +7,9 @@
 #include <span>
 #include <thread>
 #include <mutex>
+
 #include <bco/proactor.h>
+#include <bco/net/address.h>
 
 
 namespace bco {
@@ -30,16 +33,27 @@ public:
 public:
     IOCP();
     ~IOCP();
-    int create_fd();
+
     void start();
     void stop();
-    int read(int s, std::span<std::byte> buff, std::function<void(int length)> cb);
 
-    int write(int s, std::span<std::byte> buff, std::function<void(int length)> cb);
+    int create(int domain, int type);
+    int bind(int s, const sockaddr_storage& addr);
+    int listen(int s, int backlog);
+
+    int recv(int s, std::span<std::byte> buff, std::function<void(int)> cb);
+
+    std::tuple<int, Address> recvfrom(int s, std::span<std::byte> buff, std::function<void(int, const Address&)>);
+
+    int send(int s, std::span<std::byte> buff, std::function<void(int)> cb);
+    int send(int s, std::span<std::byte> buff);
+
+    int sendto(int s, std::span<std::byte> buff, const sockaddr_storage& addr, std::function<void(int)>);
+    int sendto(int s, std::span<std::byte> buff, const sockaddr_storage& addr);
 
     int accept(int listen_fd, std::function<void(int s)> cb);
 
-    bool connect(int s, sockaddr_in addr, std::function<void(int)> cb);
+    int connect(int s, const sockaddr_storage& addr, std::function<void(int)> cb);
 
     std::vector<PriorityTask> harvest_completed_tasks();
 

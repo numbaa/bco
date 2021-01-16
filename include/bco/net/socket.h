@@ -20,7 +20,7 @@ template <typename T>
 concept SocketProactor = bco::Proactor<T>
     && requires(T p, int fd, int domain, int type, uint32_t timeout_ms,
         const sockaddr_storage& addr, std::span<std::byte> buff,
-        std::function<void(int)> cb,
+        std::function<void(int)> cb, int backlog,
         std::function<void(int, const Address&)> cb2)
 {
     {
@@ -39,6 +39,21 @@ concept SocketProactor = bco::Proactor<T>
     ->std::same_as<int>;
 
     {
+        p.send(fd, buff)
+    }
+    ->std::same_as<int>;
+
+    {
+        p.sendto(fd, buff, addr, cb)
+    }
+    ->std::same_as<int>;
+
+    {
+        p.sendto(fd, buff, addr)
+    }
+    ->std::same_as<int>;
+
+    {
         p.accept(fd, cb)
     }
     ->std::same_as<int>;
@@ -50,6 +65,16 @@ concept SocketProactor = bco::Proactor<T>
 
     {
         p.create(domain, type)
+    }
+    ->std::same_as<int>;
+
+    {
+        p.bind(fd, addr)
+    }
+    ->std::same_as<int>;
+
+    {
+        p.listen(fd, backlog)
     }
     ->std::same_as<int>;
 };

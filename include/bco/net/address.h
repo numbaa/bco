@@ -17,6 +17,7 @@ public:
     Address() = default;
     Address(in_addr ip, uint16_t port);
     Address(in6_addr ip, uint16_t port);
+
     uint16_t port() const;
     in_addr ipv4() const;
     in6_addr ipv6() const;
@@ -25,6 +26,12 @@ public:
     void set_ip(in_addr ip);
     void set_ip(in6_addr ip);
     void set_port(uint16_t port);
+
+    bool is_private() const;
+    bool is_loopback() const;
+    bool is_linklocal() const;
+    bool is_private_network() const;
+    bool is_shared_network() const;
 
     sockaddr_storage to_storage() const;
     static Address from_storage(const sockaddr_storage& storage);

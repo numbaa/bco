@@ -38,13 +38,23 @@ Epoll::~Epoll()
     harvest_thread_.join();
 }
 
-int Epoll::create_fd()
+int Epoll::create(int domain, int type)
 {
-    auto fd = ::socket(AF_INET, SOCK_STREAM, 0);
+    auto fd = ::socket(domain, type, 0);
     if (fd < 0)
         return static_cast<int>(fd);
     set_non_block(static_cast<int>(fd));
     return static_cast<int>(fd);
+}
+
+int Epoll::bind(int s, const sockaddr_storage& addr)
+{
+    return ::bind(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
+}
+
+int Epoll::listen(int s, int backlog)
+{
+    return ::listen(s, backlog);
 }
 
 void Epoll::start()
@@ -58,7 +68,7 @@ void Epoll::stop()
     ::write(exit_fd_, &buff, sizeof(buff));
 }
 
-int Epoll::read(int s, std::span<std::byte> buff, std::function<void(int length)> cb)
+int Epoll::recv(int s, std::span<std::byte> buff, std::function<void(int)> cb)
 {
     std::lock_guard lock { mtx_ };
     auto it = pending_tasks_.find(s);
@@ -77,7 +87,7 @@ int Epoll::read(int s, std::span<std::byte> buff, std::function<void(int length)
     return 0;
 }
 
-int Epoll::write(int s, std::span<std::byte> buff, std::function<void(int length)> cb)
+int Epoll::send(int s, std::span<std::byte> buff, std::function<void(int)> cb)
 {
     /*
     if (is_current_thread(harvest_thread_)) {
@@ -107,7 +117,7 @@ int Epoll::write(int s, std::span<std::byte> buff, std::function<void(int length
     return 0;
 }
 
-int Epoll::accept(int s, std::function<void(int s)> cb)
+int Epoll::accept(int s, std::function<void(int)> cb)
 {
     EpollTask task {};
     task.event.data.fd = s;
@@ -119,11 +129,11 @@ int Epoll::accept(int s, std::function<void(int s)> cb)
     return 0;
 }
 
-bool Epoll::connect(int s, sockaddr_in addr, std::function<void(int)> cb)
+int Epoll::connect(int s, const sockaddr_storage& addr, std::function<void(int)> cb)
 {
-    int ret = ::connect(s, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+    int ret = ::connect(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
     if (ret < 0)
-        return false;
+        return ret;
     EpollTask task {};
     task.event.data.fd = s;
     task.event.events = EPOLLOUT; //level triger
@@ -131,7 +141,7 @@ bool Epoll::connect(int s, sockaddr_in addr, std::function<void(int)> cb)
     task.write.emplace(std::span<std::byte> {}, cb);
     std::lock_guard lock {mtx_};
     pending_tasks_[s] = task;
-    return true;
+    return 0;
 }
 
 int Epoll::next_timeout()

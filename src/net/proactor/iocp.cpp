@@ -60,13 +60,23 @@ IOCP::~IOCP()
     CloseHandle(complete_port_);
 }
 
-int IOCP::create_fd()
+int IOCP::create(int domain, int type)
 {
-    SOCKET fd = ::socket(AF_INET, SOCK_STREAM, 0);
+    SOCKET fd = ::socket(domain, type, 0);
     if (fd < 0)
         return static_cast<int>(fd);
     ::CreateIoCompletionPort(reinterpret_cast<HANDLE>(fd), complete_port_, NULL, 0);
     return static_cast<int>(fd);
+}
+
+int IOCP::bind(int s, const sockaddr_storage& addr)
+{
+    return ::bind(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
+}
+
+int IOCP::listen(int s, int backlog)
+{
+    return ::listen(s, backlog);
 }
 
 void IOCP::start()
@@ -79,7 +89,7 @@ void IOCP::stop()
     ::PostQueuedCompletionStatus(complete_port_, 0, kExitKey, nullptr);
 }
 
-int IOCP::read(int s, std::span<std::byte> buff, std::function<void(int length)> cb)
+int IOCP::recv(int s, std::span<std::byte> buff, std::function<void(int)> cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
     overlap_info->action = OverlapAction::Receive;
@@ -107,7 +117,7 @@ int IOCP::read(int s, std::span<std::byte> buff, std::function<void(int length)>
     return -1;
 }
 
-int IOCP::write(int s, std::span<std::byte> buff, std::function<void(int length)> cb)
+int IOCP::send(int s, std::span<std::byte> buff, std::function<void(int length)> cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
     overlap_info->action = OverlapAction::Send;
@@ -175,7 +185,7 @@ LPFN_CONNECTEX GetConnectEx(SOCKET so)
     return fnConnectEx;
 }
 
-bool IOCP::connect(int s, sockaddr_in addr, std::function<void(int)> cb)
+int IOCP::connect(int s, const sockaddr_storage& addr, std::function<void(int)> cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
     overlap_info->action = OverlapAction::Connect;

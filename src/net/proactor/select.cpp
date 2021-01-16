@@ -26,13 +26,23 @@ Select::~Select()
     harvest_thread_.join();
 }
 
-int Select::create_fd()
+int Select::create(int domain, int type)
 {
-    auto fd = ::socket(AF_INET, SOCK_STREAM, 0);
+    auto fd = ::socket(domain, type, 0);
     if (fd < 0)
         return static_cast<int>(fd);
     set_non_block(static_cast<int>(fd));
     return static_cast<int>(fd);
+}
+
+int Select::bind(int s, const sockaddr_storage& addr)
+{
+    return ::bind(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
+}
+
+int Select::listen(int s, int backlog)
+{
+    return ::listen(s, backlog);
 }
 
 void Select::start()
@@ -45,7 +55,7 @@ void Select::stop()
     stop_event_.emit();
 }
 
-int Select::read(int s, std::span<std::byte> buff, std::function<void(int length)> cb)
+int Select::recv(int s, std::span<std::byte> buff, std::function<void(int length)> cb)
 {
     std::lock_guard lock { mtx_ };
     if (s > max_rfd_)
@@ -54,7 +64,7 @@ int Select::read(int s, std::span<std::byte> buff, std::function<void(int length
     return 0;
 }
 
-int Select::write(int s, std::span<std::byte> buff, std::function<void(int length)> cb)
+int Select::send(int s, std::span<std::byte> buff, std::function<void(int length)> cb)
 {
     std::lock_guard lock { mtx_ };
     if (s > max_wfd_)
@@ -63,12 +73,12 @@ int Select::write(int s, std::span<std::byte> buff, std::function<void(int lengt
     return 0;
 }
 
-bool Select::connect(int s, sockaddr_in addr, std::function<void(int)> cb)
+int Select::connect(int s, const sockaddr_storage& addr, std::function<void(int)> cb)
 {
     std::lock_guard lock { mtx_ };
     if (s > max_wfd_)
         max_wfd_ = s;
-    ::connect(s, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+    ::connect(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
     pending_wfds_[s] = SelectTask { s, Action::Connect, std::span<std::byte> {}, cb };
     return true;
 }
