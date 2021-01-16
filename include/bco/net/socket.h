@@ -21,7 +21,7 @@ concept SocketProactor = bco::Proactor<T>
     && requires(T p, int fd, int domain, int type, uint32_t timeout_ms,
         const sockaddr_storage& addr, std::span<std::byte> buff,
         std::function<void(int)> cb, int backlog,
-        std::function<void(int, const Address&)> cb2)
+        std::function<void(int, const sockaddr_storage&)> cb2)
 {
     {
         p.recv(fd, buff, cb)
@@ -31,7 +31,7 @@ concept SocketProactor = bco::Proactor<T>
     {
         p.recvfrom(fd, buff, cb2)
     }
-    ->std::same_as<std::tuple<int, Address>>;
+    ->std::same_as<std::tuple<int, sockaddr_storage>>;
 
     {
         p.send(fd, buff, cb)
@@ -60,6 +60,11 @@ concept SocketProactor = bco::Proactor<T>
 
     {
         p.connect(fd, addr, cb)
+    }
+    ->std::same_as<int>;
+
+    {
+        p.connect(fd, addr)
     }
     ->std::same_as<int>;
 

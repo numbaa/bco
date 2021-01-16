@@ -13,7 +13,9 @@ public:
     SimpleExecutor& operator=(SimpleExecutor&&) = delete;
     SimpleExecutor(SimpleExecutor&) = delete;
     SimpleExecutor& operator=(SimpleExecutor&) = delete;
+    ~SimpleExecutor() override;
     void post(PriorityTask task) override;
+    void post_delay(std::chrono::microseconds duration, PriorityTask task) override;
     void start() override;
     void set_proactor_task_getter(std::function<std::vector<PriorityTask>()> func) override;
 

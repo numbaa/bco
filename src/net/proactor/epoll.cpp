@@ -7,15 +7,9 @@
 #include <bco/net/proactor/epoll.h>
 #include <bco/utils.h>
 
-#include <bco/net/tcp.h>
-#include <bco/net/udp.h>
-
 namespace bco {
 
 namespace net {
-
-TcpSocket<Epoll> __instance_epoll_tcp;
-UdpSocket<Epoll> __instance_epoll_udp;
 
 Epoll::Epoll()
 {
@@ -142,6 +136,11 @@ int Epoll::connect(int s, const sockaddr_storage& addr, std::function<void(int)>
     std::lock_guard lock {mtx_};
     pending_tasks_[s] = task;
     return 0;
+}
+
+int Epoll::connect(int s, const sockaddr_storage& addr)
+{
+    return ::connect(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
 }
 
 int Epoll::next_timeout()

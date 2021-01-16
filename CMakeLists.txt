@@ -4,20 +4,26 @@ project(bco)
 
 set(CMAKE_CXX_STANDARD 20)
 
-if(WIN32)
-add_definitions(-DNOMINMAX)
-set(PLAT_SPEC
-    "include/bco/net/proactor/iocp.h"
-    "src/net/proactor/iocp.cpp"
-    )
+if (MSVC)
+    add_definitions(-DNOMINMAX)
+    add_compile_options(/W4 /WX)
 else()
-add_compile_options(-fcoroutines)
-set(PLAT_SPEC
-    "include/bco/net/proactor/epoll.h"
-    "include/bco/net/proactor/iouring.h"
-    "src/net/proactor/epoll.cpp"
-    "src/net/proactor/iouring.cpp"
-    )
+    add_compile_options(-fcoroutines)
+    add_compile_options(-Wall -Wextra -pedantic -Werror)
+endif()
+
+if(WIN32)
+    set(PLAT_SPEC
+        "include/bco/net/proactor/iocp.h"
+        "src/net/proactor/iocp.cpp"
+        )
+else()
+    set(PLAT_SPEC
+        "include/bco/net/proactor/epoll.h"
+        "include/bco/net/proactor/iouring.h"
+        "src/net/proactor/epoll.cpp"
+        "src/net/proactor/iouring.cpp"
+        )
 endif()
 
 add_library(${PROJECT_NAME} STATIC

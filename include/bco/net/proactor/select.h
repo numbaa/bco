@@ -63,7 +63,7 @@ public:
 
     int recv(int s, std::span<std::byte> buff, std::function<void(int)> cb);
 
-    std::tuple<int, Address> recvfrom(int s, std::span<std::byte> buff, std::function<void(int, const Address&)>);
+    std::tuple<int, sockaddr_storage> recvfrom(int s, std::span<std::byte> buff, std::function<void(int, const sockaddr_storage&)> cb);
 
     int send(int s, std::span<std::byte> buff, std::function<void(int)> cb);
     int send(int s, std::span<std::byte> buff);
@@ -74,6 +74,7 @@ public:
     int accept(int s, std::function<void(int)> cb);
 
     int connect(int s, const sockaddr_storage& addr, std::function<void(int)> cb);
+    int connect(int s, const sockaddr_storage& addr);
 
     std::vector<PriorityTask> harvest_completed_tasks();
 
@@ -92,14 +93,14 @@ private:
     Event stop_event_;
     std::mutex mtx_;
     std::thread harvest_thread_;
-    int max_rfd_ { 0 };
-    int max_wfd_ { 0 };
+    int max_rfd_ {};
+    int max_wfd_ {};
     std::map<int, SelectTask> pending_rfds_;
     std::map<int, SelectTask> pending_wfds_;
     std::vector<PriorityTask> completed_task_;
-    fd_set rfds_;
-    fd_set wfds_;
-    fd_set efds_;
+    fd_set rfds_ {};
+    fd_set wfds_ {};
+    fd_set efds_ {};
 };
 
 } // namespace net

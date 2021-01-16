@@ -1,8 +1,21 @@
 #include <bco/net/udp.h>
+#include <bco/net/proactor/select.h>
+#ifdef _WIN32
+#include <bco/net/proactor/iocp.h>
+#else
+#include <bco/net/proactor/epoll.h>
+#endif // _WIN32
 
 namespace bco {
 
 namespace net {
+
+template class UdpSocket<Select>;
+#ifdef _WIN32
+template class UdpSocket<IOCP>;
+#else
+template class UdpSocket<Epoll>;
+#endif // _WIN32
 
 template <SocketProactor P>
 std::tuple<UdpSocket<P>, int> UdpSocket<P>::create(P* proactor, int family)
@@ -26,7 +39,7 @@ template <SocketProactor P>
 ProactorTask<int> UdpSocket<P>::recv(std::span<std::byte> buffer)
 {
     ProactorTask<int> task;
-    int size = proactor_->read(socket_, buffer, [task](int length) mutable {
+    int size = proactor_->recv(socket_, buffer, [task](int length) mutable {
         if (task.await_ready())
             return;
         task.set_result(std::forward<int>(length));
@@ -39,36 +52,45 @@ ProactorTask<int> UdpSocket<P>::recv(std::span<std::byte> buffer)
 }
 
 template <SocketProactor P>
-ProactorTask<std::tuple<int, Address>> UdpSocket<P>::recvfrom(std::span<::byte> buffer)
+ProactorTask<std::tuple<int, Address>> UdpSocket<P>::recvfrom(std::span<std::byte> buffer)
 {
-    ProactorTask<std::tuple<int, SocketAddress>> task;
+    ProactorTask<std::tuple<int, Address>> task;
     auto [size, remote_addr] = proactor_->recvfrom(socket_, buffer, [task](int length, const sockaddr_storage& remote_addr) mutable {
         if (task.await_ready())
             return;
-        task.set_result(std::make_tuple(length, SocketAddress::from_storage(remote_addr)));
+        task.set_result(std::make_tuple(length, Address::from_storage(remote_addr)));
         task.resume();
     });
     if (size > 0) {
-        task.set_result(std::make_tuple(size, SocketAddress::from_storage(remote_addr)));
+        task.set_result(std::make_tuple(size, Address::from_storage(remote_addr)));
     }
+    return task;
 }
 
 template <SocketProactor P>
 int UdpSocket<P>::send(std::span<std::byte> buffer)
 {
-    return proactor_->write(buffer);
+    return proactor_->send(socket_, buffer);
 }
 
 template <SocketProactor P>
 int UdpSocket<P>::sendto(std::span<std::byte> buffer, const Address& addr)
 {
-    return proactor_->sendto(buffer, addr.to_storage());
+    return proactor_->sendto(socket_, buffer, addr.to_storage());
 }
 
 template <SocketProactor P>
 int UdpSocket<P>::bind(const Address& addr)
 {
-    return ::bind(socket_, reinterpret_cast<const sockaddr*>(&addr.to_storage()), sizeof(sockaddr_storage));
+    auto storage = addr.to_storage();
+    return proactor_->bind(socket_, storage);
+}
+
+template <SocketProactor P>
+int UdpSocket<P>::connect(const Address& addr)
+{
+    auto storage = addr.to_storage();
+    return proactor_->connect(socket_, storage);
 }
 
 }

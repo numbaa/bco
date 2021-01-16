@@ -5,15 +5,10 @@
 #include <bco/net/proactor/select.h>
 #include <bco/utils.h>
 
-#include <bco/net/tcp.h>
-#include <bco/net/udp.h>
 
 namespace bco {
 
 namespace net {
-
-TcpSocket<Select> __instance_select_tcp;
-UdpSocket<Select> __instance_select_udp;
 
 Select::Select()
 {
@@ -81,6 +76,11 @@ int Select::connect(int s, const sockaddr_storage& addr, std::function<void(int)
     ::connect(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
     pending_wfds_[s] = SelectTask { s, Action::Connect, std::span<std::byte> {}, cb };
     return true;
+}
+
+int Select::connect(int s, const sockaddr_storage& addr)
+{
+    return ::connect(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
 }
 
 int Select::accept(int s, std::function<void(int s)> cb)
@@ -154,8 +154,6 @@ void Select::select_loop()
 
 void Select::do_accept(const SelectTask& task)
 {
-    sockaddr_in addr;
-    int len;
     auto fd = ::accept(task.fd, nullptr, 0);
     if (fd >= 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
         set_non_block(static_cast<int>(fd));
@@ -169,7 +167,7 @@ void Select::do_accept(const SelectTask& task)
 
 void Select::do_read(const SelectTask& task)
 {
-    int bytes = ::recv(task.fd, reinterpret_cast<char*>(task.buff.data()), task.buff.size(), 0);
+    int bytes = ::recv(task.fd, reinterpret_cast<char*>(task.buff.data()), static_cast<int>(task.buff.size()), 0);
     if (bytes >= 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
         std::lock_guard lock { mtx_ };
         pending_rfds_.erase(task.fd);
@@ -181,7 +179,7 @@ void Select::do_read(const SelectTask& task)
 
 void Select::do_write(const SelectTask& task)
 {
-    int bytes = ::send(task.fd, reinterpret_cast<const char*>(task.buff.data()), task.buff.size(), 0);
+    int bytes = ::send(task.fd, reinterpret_cast<const char*>(task.buff.data()), static_cast<int>(task.buff.size()), 0);
     if (bytes >= 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
         std::lock_guard lock { mtx_ };
         pending_wfds_.erase(task.fd);

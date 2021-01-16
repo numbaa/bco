@@ -85,7 +85,7 @@ public:
     }
     void resume() { ctx_->caller_coroutine_.resume(); }
 
-private:
+protected:
     std::shared_ptr<SharedContext> ctx_;
 };
 

@@ -14,8 +14,8 @@ namespace bco {
 namespace net {
 
 Event::Event()
-    : fd_listen_(::socket(AF_INET, SOCK_STREAM, 0))
-    , fd_connect_(::socket(AF_INET, SOCK_STREAM, 0))
+    : fd_listen_(static_cast<int>(::socket(AF_INET, SOCK_STREAM, 0)))
+    , fd_connect_(static_cast<int>(::socket(AF_INET, SOCK_STREAM, 0)))
 {
     if (fd_listen_ < 0 || fd_connect_ < 0) {
         throw NetworkException { "create socket failed" };
@@ -24,7 +24,7 @@ Event::Event()
     set_non_block(fd_connect_);
     addr_.sin_family = AF_INET;
     #ifdef _WIN32
-    addr_.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
+    addr_.sin_addr = bco::to_ipv4("127.0.0.1");
     #else
     inet_aton("127.0.0.1", &addr_.sin_addr);
     #endif

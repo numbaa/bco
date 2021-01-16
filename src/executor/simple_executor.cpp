@@ -7,10 +7,22 @@
 
 namespace bco {
 
+SimpleExecutor::~SimpleExecutor()
+{
+    //TODO: implement
+}
+
 void SimpleExecutor::post(PriorityTask task)
 {
     std::lock_guard<std::mutex> lock { mutex_ };
     tasks_.push_back(task);
+}
+
+void SimpleExecutor::post_delay(std::chrono::microseconds duration, PriorityTask task)
+{
+    //TODO: implement
+    (void)duration;
+    (void)task;
 }
 
 void SimpleExecutor::start()

@@ -3,7 +3,7 @@
 
 namespace bco {
 
-class NetworkException : std::runtime_error {
+class NetworkException : public std::runtime_error {
 public:
     NetworkException(const std::string& message)
         : std::runtime_error { message }

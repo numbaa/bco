@@ -44,7 +44,7 @@ public:
 
     void await_suspend(std::coroutine_handle<> coroutine) noexcept
     {
-        ctx_->caller_coroutine_ = coroutine;
+        this->ctx_->caller_coroutine_ = coroutine;
         target_executor_->post(PriorityTask {
             1,
             [this, coroutine]() mutable {

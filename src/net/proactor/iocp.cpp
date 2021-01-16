@@ -14,15 +14,9 @@
 #include <bco/executor.h>
 #include <bco/utils.h>
 
-#include <bco/net/tcp.h>
-#include <bco/net/udp.h>
-
 namespace bco {
 
 namespace net {
-
-TcpSocket<IOCP> __instance_iocp_tcp;
-UdpSocket<IOCP> __instance_iocp_udp;
 
 constexpr size_t kAcceptBuffLen = sizeof(SOCKADDR_IN) * 2 + 32;
 constexpr ULONG_PTR kExitKey = 0xffeeddcc;
@@ -206,6 +200,11 @@ int IOCP::connect(int s, const sockaddr_storage& addr, std::function<void(int)> 
     return false;
 }
 
+int IOCP::connect(int s, const sockaddr_storage& addr)
+{
+    return ::connect(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
+}
+
 
 std::vector<PriorityTask> net::IOCP::harvest_completed_tasks()
 {
@@ -235,6 +234,8 @@ void IOCP::iocp_loop()
             }
         } else if (ret == 0 && overlapped != 0) {
             auto err = ::GetLastError();
+            (void)err;
+            //TODO: handler error
         } else if (ret != 0 && overlapped == 0) {
             assert(false);
         } else if (ret != 0 && overlapped != 0) {

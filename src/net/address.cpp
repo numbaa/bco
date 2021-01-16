@@ -15,15 +15,29 @@ namespace net {
 Address::Address(in_addr ip, uint16_t port)
     : family_(AF_INET)
     , port_(port)
+    , ip_(ip)
 {
-    ip_.v4 = ip;
 }
 
-Address::Address(in6_addr ip, uint16_t port)
+Address::Address(const in6_addr& ip, uint16_t port)
     : family_(AF_INET6)
     , port_(port)
+    , ip_(ip)
 {
-    ip_.v6 = ip;
+}
+
+Address::Address(const sockaddr_in& addr)
+    : family_(AF_INET)
+    , port_(addr.sin_port)
+    , ip_(addr.sin_addr)
+{
+}
+
+Address::Address(const sockaddr_in6& addr)
+    : family_(AF_INET)
+    , port_(addr.sin6_port)
+    , ip_(addr.sin6_addr)
+{
 }
 
 uint16_t Address::port() const

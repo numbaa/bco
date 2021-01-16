@@ -1,11 +1,24 @@
 #include <bco/net/tcp.h>
+#include <bco/net/proactor/select.h>
+#ifdef _WIN32
+#include <bco/net/proactor/iocp.h>
+#else
+#include <bco/net/proactor/epoll.h>
+#endif // _WIN32
 
 namespace bco {
 
 namespace net {
 
+template class TcpSocket<Select>;
+#ifdef _WIN32
+template class TcpSocket<IOCP>;
+#else
+template class TcpSocket<Epoll>;
+#endif // _WIN32
+
 template <SocketProactor P>
-static std::tuple<TcpSocket<P>, int> TcpSocket<P>::create(P* proactor, int family)
+std::tuple<TcpSocket<P>, int> TcpSocket<P>::create(P* proactor, int family)
 {
     int fd = proactor->create(family, SOCK_STREAM);
     if (fd < 0)
@@ -78,18 +91,38 @@ ProactorTask<TcpSocket<P>> TcpSocket<P>::accept()
 template <SocketProactor P>
 ProactorTask<int> TcpSocket<P>::connect(const Address& addr)
 {
+    ProactorTask<int> task;
+    int ret = proactor_->connect(socket_, addr.to_storage(), [task](int ret) mutable {
+        if (ret == 0) {
+            task.set_result(0);
+        } else if (ret < 0) {
+            task.set_result(-errno);
+        } else {
+            assert(false);
+        }
+        task.resume();
+    });
+    if (ret == 0) {
+        task.set_result(0);
+    } else if (ret < 0) {
+        task.set_result(-errno);
+    } else {
+        assert(false);
+    }
+    return task;
 }
 
 template <SocketProactor P>
 int TcpSocket<P>::listen(int backlog)
 {
-    return ::listen(socket_, backlog);
+    return proactor_->listen(socket_, backlog);
 }
 
 template <SocketProactor P>
 int TcpSocket<P>::bind(const Address& addr)
 {
-    return ::bind(socket_, reinterpret_cast<sockaddr*>(&addr.to_storage()), sizeof(sockaddr_storage));
+    auto storage = addr.to_storage();
+    return proactor_->bind(socket_, storage);
 }
 
 }

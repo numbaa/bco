@@ -8,6 +8,7 @@ namespace bco {
 
 class ExecutorInterface {
 public:
+    virtual ~ExecutorInterface() {};
     virtual void post(PriorityTask task) = 0;
     virtual void post_delay(std::chrono::microseconds duration, PriorityTask task) = 0;
     virtual void start() = 0;

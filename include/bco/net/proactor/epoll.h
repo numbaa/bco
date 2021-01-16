@@ -68,7 +68,7 @@ public:
 
     int recv(int s, std::span<std::byte> buff, std::function<void(int)> cb);
 
-    std::tuple<int, Address> recvfrom(int s, std::span<std::byte> buff, std::function<void(int, const Address&)>);
+    std::tuple<int, sockaddr_storage> recvfrom(int s, std::span<std::byte> buff, std::function<void(int, const sockaddr_storage&)> cb);
 
     int send(int s, std::span<std::byte> buff, std::function<void(int)> cb);
     int send(int s, std::span<std::byte> buff);
@@ -79,6 +79,7 @@ public:
     int accept(int listen_fd, std::function<void(int s)> cb);
 
     int connect(int s, const sockaddr_storage& addr, std::function<void(int)> cb);
+    int connect(int s, const sockaddr_storage& addr);
 
     std::vector<PriorityTask> harvest_completed_tasks();
 
