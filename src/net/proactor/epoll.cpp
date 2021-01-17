@@ -1,6 +1,8 @@
 #include <sys/eventfd.h>
 #include <unistd.h>
 
+#include <cassert>
+
 #include <array>
 
 #include <bco/exception.h>
@@ -29,7 +31,6 @@ Epoll::Epoll()
 
 Epoll::~Epoll()
 {
-    harvest_thread_.join();
 }
 
 int Epoll::create(int domain, int type)
@@ -51,9 +52,12 @@ int Epoll::listen(int s, int backlog)
     return ::listen(s, backlog);
 }
 
-void Epoll::start()
+void Epoll::start(ExecutorInterface* executor)
 {
-    harvest_thread_ = std::move(std::thread { std::bind(&Epoll::epoll_loop, this) });
+    io_executor_ = executor;
+    io_executor_->post(bco::PriorityTask {
+        .priority = 4,
+        .task = std::bind(&Epoll::do_io, this) });
 }
 
 void Epoll::stop()
@@ -68,13 +72,13 @@ int Epoll::recv(int s, std::span<std::byte> buff, std::function<void(int)> cb)
     auto it = pending_tasks_.find(s);
     if (it != pending_tasks_.cend()) {
         it->second.event.events |= EPOLLIN;
-        it->second.action |= Action::Read;
+        it->second.action |= Action::Recv;
         it->second.write.emplace(buff, cb);
     } else {
         EpollTask task {};
         task.event.data.fd = s;
         task.event.events = EPOLLIN; //level trigger
-        task.action |= Action::Read;
+        task.action |= Action::Recv;
         task.read.emplace(buff, cb);
         pending_tasks_[s] = task;
     }
@@ -83,32 +87,11 @@ int Epoll::recv(int s, std::span<std::byte> buff, std::function<void(int)> cb)
 
 int Epoll::send(int s, std::span<std::byte> buff, std::function<void(int)> cb)
 {
-    /*
-    if (is_current_thread(harvest_thread_)) {
-        int bytes = ::write(s, reinterpret_cast<void*>(buff.data()), buff.size());
-        if (bytes < 0 && should_try_again()) {
-            // try again
-        } else {
-            //error or success
-            return bytes;
-        }
-    }
-    */
-    std::lock_guard lock { mtx_ };
-    auto it = pending_tasks_.find(s);
-    if (it != pending_tasks_.cend()) {
-        it->second.event.events |= EPOLLOUT;
-        it->second.action |= Action::Write;
-        it->second.write.emplace(buff, cb);
+    if (io_executor_->is_current_executor()) {
+        return send_sync(s, buff, cb);
     } else {
-        EpollTask task {};
-        task.event.data.fd = s;
-        task.event.events = EPOLLOUT; //level triger
-        task.action |= Action::Write;
-        task.write.emplace(buff, cb);
-        pending_tasks_[s] = task;
+        return send_async(s, buff, cb);
     }
-    return 0;
 }
 
 int Epoll::accept(int s, std::function<void(int)> cb)
@@ -160,58 +143,96 @@ void Epoll::submit_tasks(std::map<int, Epoll::EpollTask>& pending_tasks)
     for (auto& task : pending_tasks) {
         auto it = flying_tasks_.find(task.second.event.data.fd);
         if (it != flying_tasks_.cend()) {
-            if ((task.second.action & Action::Read) != Action::None) {
-                it->second.action |= Action::Read;
+            if ((task.second.action & Action::Recv) != Action::None) {
+                it->second.action |= Action::Recv;
                 it->second.event.events |= EPOLLIN;
                 it->second.read = task.second.read;
             }
-            if ((task.second.action & Action::Write) != Action::None) {
-                it->second.action |= Action::Write;
+            if ((task.second.action & Action::Send) != Action::None) {
+                it->second.action |= Action::Send;
                 it->second.event.events |= EPOLLOUT;
-                it->second.write = task.second.write;
-                //continue;
-            } else if ((task.second.action & Action::Accept) != Action::None) {
-                it->second.action |= Action::Read;
-                it->second.event.events |= EPOLLIN;
-                it->second.read = task.second.read;
-                //continue;
-            } else if ((task.second.action & Action::Connect) != Action::None) {
-                it->second.action |= Action::Write;
-                it->second.event.events |= EPOLLOUT;
-                it->second.write = task.second.write;
+it->second.write = task.second.write;
+//continue;
+            }
+ else if ((task.second.action & Action::Accept) != Action::None) {
+ it->second.action |= Action::Recv;
+ it->second.event.events |= EPOLLIN;
+ it->second.read = task.second.read;
+ //continue;
+            }
+ else if ((task.second.action & Action::Connect) != Action::None) {
+ it->second.action |= Action::Send;
+ it->second.event.events |= EPOLLOUT;
+ it->second.write = task.second.write;
             }
             int ret = epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, task.second.event.data.fd, &task.second.event);
             if (ret < 0) {
                 //error handling
             }
-        } else {
-            flying_tasks_[task.second.event.data.fd] = task.second;
-            int ret = epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, task.second.event.data.fd, &task.second.event);
-            if (ret < 0) {
-                //error handling
-            }
+        }
+ else {
+ flying_tasks_[task.second.event.data.fd] = task.second;
+ int ret = epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, task.second.event.data.fd, &task.second.event);
+ if (ret < 0) {
+     //error handling
+ }
         }
     }
 }
 
-void Epoll::epoll_loop()
+void Epoll::do_io()
 {
+    assert(io_executor_->is_current_executor());
+
     constexpr int kMaxEvents = 512;
-    std::array<epoll_event, kMaxEvents> events {};
-    while (true) {
-        auto pending_tasks = get_pending_tasks();
-        submit_tasks(pending_tasks);
-        int timeout_ms = next_timeout();
-        int count = epoll_wait(epoll_fd_, events.data(), events.size(), timeout_ms);
-        if (count < 0 && errno != EINTR) {
-            return;
-        }
-        for (int i = 0; i < count; i++) {
-            if (events[i].data.fd == exit_fd_)
-                return;
-            on_io_event(events[i]);
-        }
+    std::array<epoll_event, kMaxEvents> events;
+    auto pending_tasks = get_pending_tasks();
+    submit_tasks(pending_tasks);
+    constexpr int timeout = 0;
+    int count = epoll_wait(epoll_fd_, events.data(), events.size(), timeout);
+    if (count < 0 && errno != EINTR) {
+        return;
     }
+    for (int i = 0; i < count; i++) {
+        if (events[i].data.fd == exit_fd_)
+            return;
+        on_io_event(events[i]);
+    }
+    using namespace std::chrono_literals;
+    io_executor_->post_delay(1ms, bco::PriorityTask{
+        .priority = 4,
+        .task = std::bind(&Epoll::do_io, this) });
+}
+
+int Epoll::send_sync(int s, std::span<std::byte> buff, std::function<void(int)> cb)
+{
+    int bytes = ::send(s, reinterpret_cast<const char*>(buff.data()), static_cast<int>(buff.size()), 0);
+    if (bytes >= 0)
+        return bytes;
+    else if (last_error() == EAGAIN || last_error() == EWOULDBLOCK)
+        return send_async(s, buff, cb);
+    else
+        return -last_error();
+}
+
+int Epoll::send_async(int s, std::span<std::byte> buff, std::function<void(int)> cb)
+{
+    std::lock_guard lock{ mtx_ };
+    auto it = pending_tasks_.find(s);
+    if (it != pending_tasks_.cend()) {
+        it->second.event.events |= EPOLLOUT;
+        it->second.action |= Action::Send;
+        it->second.write.emplace(buff, cb);
+    }
+    else {
+        EpollTask task{};
+        task.event.data.fd = s;
+        task.event.events = EPOLLOUT; //level triger
+        task.action |= Action::Send;
+        task.write.emplace(buff, cb);
+        pending_tasks_[s] = task;
+    }
+    return 0;
 }
 
 void Epoll::on_io_event(const epoll_event& event)
@@ -234,15 +255,20 @@ void Epoll::on_io_event(const epoll_event& event)
         return;
     }
     if (event.events & EPOLLIN) {
-        do_read(it->second);
-        //no return here
+        if ((it->second.action & Action::Recv) != Action::None) {
+            do_recv(it->second);
+        } else if ((it->second.action & Action::Recvfrom) != Action::None) {
+            do_recvfrom(it->second);
+        } else {
+            // TODO: error handling
+        }
     }
     if (event.events & EPOLLOUT) {
-        do_write(it->second);
+        do_send(it->second);
     }
 }
 
-void Epoll::do_write(EpollTask& task)
+void Epoll::do_send(EpollTask& task)
 {
     auto& ioitem = task.write.value();
     int bytes = ::write(task.event.data.fd, reinterpret_cast<void*>(ioitem.buff.data()), ioitem.buff.size());
@@ -293,7 +319,7 @@ void Epoll::on_connected(EpollTask& task)
     completed_task_.push_back(PriorityTask { 0, std::bind(task.write.value().cb, static_cast<int>(task.event.data.fd)) });
 }
 
-void Epoll::do_read(EpollTask& task)
+void Epoll::do_recv(EpollTask& task)
 {
     auto& ioitem = task.read.value();
     int bytes = ::read(task.event.data.fd, reinterpret_cast<void*>(ioitem.buff.data()), ioitem.buff.size());
@@ -308,6 +334,26 @@ void Epoll::do_read(EpollTask& task)
             return;
         }
         completed_task_.push_back(PriorityTask { 0, std::bind(ioitem.cb, bytes) });
+    }
+}
+
+void Epoll::do_recvfrom(EpollTask& task)
+{
+    auto& ioitem = task.read.value();
+    sockaddr_storage addr;
+    socklen_t len = sizeof(addr);
+    int bytes = ::recvfrom(task.event.data.fd, reinterpret_cast<void*>(ioitem.buff.data()), ioitem.buff.size(), 0, reinterpret_cast<sockaddr*>(&addr), &len);
+    if (bytes >= 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
+        std::lock_guard lock { mtx_ };
+        uint32_t epollin = EPOLLIN;
+        task.event.events &= ~epollin;
+        int ret = ::epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, task.event.data.fd, &(task.event));
+        if (ret < 0) {
+            //TODO: error handling
+            //completed_task_.push_back();
+            return;
+        }
+        completed_task_.push_back(PriorityTask { 0, std::bind(ioitem.cb2, bytes, addr) });
     }
 }
 

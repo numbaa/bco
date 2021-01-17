@@ -23,7 +23,8 @@ constexpr ULONG_PTR kExitKey = 0xffeeddcc;
 
 enum class OverlapAction {
     Unknown,
-    Receive,
+    Recv,
+    Recvfrom,
     Send,
     Accept,
     Connect,
@@ -40,6 +41,12 @@ struct OverlapInfo {
 
 struct AcceptOverlapInfo : OverlapInfo {
     std::array<uint8_t, kAcceptBuffLen> buff;
+};
+
+struct RecvfromOverlapInfo : OverlapInfo {
+    std::function<void(int, const sockaddr_storage&)> cb2;
+    sockaddr_storage addr;
+    int len = sizeof(addr);
 };
 #pragma warning(pop)
 
@@ -86,7 +93,7 @@ void IOCP::stop()
 int IOCP::recv(int s, std::span<std::byte> buff, std::function<void(int)> cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
-    overlap_info->action = OverlapAction::Receive;
+    overlap_info->action = OverlapAction::Recv;
     overlap_info->cb = std::move(cb);
     overlap_info->sock = s;
     ::SecureZeroMemory((PVOID)&overlap_info->overlapped, sizeof(WSAOVERLAPPED));
@@ -96,19 +103,27 @@ int IOCP::recv(int s, std::span<std::byte> buff, std::function<void(int)> cb)
     int ret = ::WSARecv(s, &wsabuf, 1, &bytes_transferred, &flags, &overlap_info->overlapped, nullptr);
     if (ret == SOCKET_ERROR) {
         int last_error = ::WSAGetLastError();
-        return last_error == WSA_IO_PENDING ? 0 : last_error;
+        return last_error == WSA_IO_PENDING ? 0 : -last_error;
     }
     return 0;
-    /*
-    if (ret == 0) {
-        delete overlap_info;
-        return bytes_transferred;
+}
+
+int IOCP::recvfrom(int s, std::span<std::byte> buff, std::function<void(int, const sockaddr_storage&)> cb)
+{
+    RecvfromOverlapInfo* overlap_info = new RecvfromOverlapInfo;
+    overlap_info->action = OverlapAction::Recvfrom;
+    overlap_info->cb2 = std::move(cb);
+    overlap_info->sock = s;
+    ::SecureZeroMemory((PVOID)&overlap_info->overlapped, sizeof(WSAOVERLAPPED));
+    WSABUF wsabuf { static_cast<ULONG>(buff.size()), reinterpret_cast<char*>(buff.data()) };
+    DWORD flags = 0;
+    DWORD bytes_transferred;
+    int ret = ::WSARecvFrom(s, &wsabuf, 1, &bytes_transferred, &flags, reinterpret_cast<sockaddr*>(&overlap_info->addr), &overlap_info->len, &overlap_info->overlapped, nullptr);
+    if (ret == SOCKET_ERROR) {
+        int last_error = ::WSAGetLastError();
+        return last_error == WSA_IO_PENDING ? 0 : -last_error;
     }
-    if (ret == SOCKET_ERROR && ::WSAGetLastError() == WSA_IO_PENDING) {
-        return 0;
-    }
-    */
-    return -1;
+    return 0;
 }
 
 int IOCP::send(int s, std::span<std::byte> buff, std::function<void(int length)> cb)
@@ -127,16 +142,30 @@ int IOCP::send(int s, std::span<std::byte> buff, std::function<void(int length)>
         return last_error == WSA_IO_PENDING ? 0 : last_error;
     }
     return 0;
-    /*
-    if (ret == 0) {
-        delete overlap_info;
-        return bytes_transferred;
-    }
-    if (ret == SOCKET_ERROR && ::WSAGetLastError() == WSA_IO_PENDING) {
-        return 0;
-    }
-    return -1;
-    */
+}
+
+int IOCP::send(int s, std::span<std::byte> buff)
+{
+    int bytes = ::send(s, reinterpret_cast<const char*>(buff.data()), static_cast<int>(buff.size()), 0);
+    if (bytes == -1)
+        return -::WSAGetLastError();
+    else
+        return bytes;
+}
+
+int IOCP::sendto(int s, std::span<std::byte> buff, const sockaddr_storage& addr)
+{
+    int bytes = ::sendto(
+        s,
+        reinterpret_cast<const char*>(buff.data()),
+        static_cast<int>(buff.size()),
+        0,
+        reinterpret_cast<const sockaddr*>(&addr),
+        sizeof(addr));
+    if (bytes == -1)
+        return -::WSAGetLastError();
+    else
+        return bytes;
 }
 
 int IOCP::accept(int s, std::function<void(int s)> cb)
@@ -248,6 +277,7 @@ void IOCP::iocp_loop()
 
 void IOCP::handle_overlap_success(WSAOVERLAPPED* overlapped, int bytes)
 {
+    // TODO: error handling
     OverlapInfo* overlap_info = reinterpret_cast<OverlapInfo*>(overlapped);
     switch (overlap_info->action) {
     case OverlapAction::Accept: {
@@ -263,8 +293,23 @@ void IOCP::handle_overlap_success(WSAOVERLAPPED* overlapped, int bytes)
         delete accept_info;
         break;
     }
-    case OverlapAction::Receive:
+    case OverlapAction::Recv:
     case OverlapAction::Send: {
+        std::lock_guard lock { mtx_ };
+        completed_tasks_.push_back(PriorityTask { 0, std::bind(overlap_info->cb, bytes) });
+    }
+        delete overlap_info;
+        break;
+    case OverlapAction::Recvfrom: {
+        RecvfromOverlapInfo* rf_info = reinterpret_cast<RecvfromOverlapInfo*>(overlapped);
+        {
+            std::lock_guard lock { mtx_ };
+            completed_tasks_.push_back(PriorityTask { 0, std::bind(rf_info->cb2, bytes, rf_info->addr) });
+        }
+        delete rf_info;
+        break;
+    }
+    case OverlapAction::Connect: {
         std::lock_guard lock { mtx_ };
         completed_tasks_.push_back(PriorityTask { 0, std::bind(overlap_info->cb, bytes) });
     }

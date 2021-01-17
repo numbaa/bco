@@ -43,12 +43,11 @@ public:
 
     int recv(int s, std::span<std::byte> buff, std::function<void(int)> cb);
 
-    std::tuple<int, sockaddr_storage> recvfrom(int s, std::span<std::byte> buff, std::function<void(int, const sockaddr_storage&)> cb);
+    int recvfrom(int s, std::span<std::byte> buff, std::function<void(int, const sockaddr_storage&)> cb);
 
     int send(int s, std::span<std::byte> buff, std::function<void(int)> cb);
     int send(int s, std::span<std::byte> buff);
 
-    int sendto(int s, std::span<std::byte> buff, const sockaddr_storage& addr, std::function<void(int)>);
     int sendto(int s, std::span<std::byte> buff, const sockaddr_storage& addr);
 
     int accept(int listen_fd, std::function<void(int s)> cb);

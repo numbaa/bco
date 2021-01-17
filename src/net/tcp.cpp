@@ -39,14 +39,14 @@ template <SocketProactor P>
 ProactorTask<int> TcpSocket<P>::recv(std::span<std::byte> buffer)
 {
     ProactorTask<int> task;
-    int size = proactor_->recv(socket_, buffer, [task](int length) mutable {
+    int error = proactor_->recv(socket_, buffer, [task](int length) mutable {
         if (task.await_ready())
             return;
         task.set_result(std::forward<int>(length));
         task.resume();
     });
-    if (size > 0) {
-        task.set_result(std::forward<int>(size));
+    if (error < 0) {
+        task.set_result(std::forward<int>(error));
     }
     return task;
 }
@@ -61,7 +61,7 @@ ProactorTask<int> TcpSocket<P>::send(std::span<std::byte> buffer)
         task.set_result(std::forward<int>(length));
         task.resume();
     });
-    if (size > 0) {
+    if (size != 0) {
         task.set_result(std::forward<int>(size));
     }
     return task;

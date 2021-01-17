@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #endif
 #include <thread>
+#include <mutex>
 
 
 namespace bco {
@@ -55,5 +56,55 @@ inline in6_addr to_ipv6(const std::string& str)
     inet_pton(AF_INET6, str.c_str(), &addr);
     return addr;
 }
+
+constexpr bool is_windows()
+{
+#ifdef _WIN32
+    return true;
+#else
+    return false;
+#endif
+}
+
+constexpr bool is_not_windows()
+{
+    return !is_windows();
+}
+
+inline int last_error()
+{
+#ifdef _WIN32
+    return GetLastError();
+#else
+    return errno;
+#endif
+}
+
+class WaitGroup {
+public:
+    explicit WaitGroup(uint32_t size)
+        : size_(size)
+    {
+        if (size_ == 0)
+            throw std::logic_error { "'size' smaller than zero" };
+    }
+    void done()
+    {
+        std::lock_guard lock { mtx_ };
+        size_ -= 1;
+        if (size_ == 0)
+            cv_.notify_one();
+    }
+    void wait()
+    {
+        std::unique_lock lock { mtx_ };
+        cv_.wait(lock, [this]() { return size_ == 0; });
+    }
+
+private:
+    std::mutex mtx_;
+    std::condition_variable cv_;
+    uint32_t size_;
+};
 
 }

@@ -18,11 +18,18 @@ public:
     void post_delay(std::chrono::microseconds duration, PriorityTask task) override;
     void start() override;
     void set_proactor_task_getter(std::function<std::vector<PriorityTask>()> func) override;
+    bool is_current_executor();
+
+private:
+    void do_start();
 
 private:
     std::function<std::vector<PriorityTask>()> get_proactor_task_;
     std::deque<PriorityTask> tasks_;
     std::mutex mutex_;
+    std::condition_variable cv_;
+    std::thread thread_;
+    bool started_ = false;
 };
 
 } //namespace bco

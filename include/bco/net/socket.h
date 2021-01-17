@@ -31,7 +31,7 @@ concept SocketProactor = bco::Proactor<T>
     {
         p.recvfrom(fd, buff, cb2)
     }
-    ->std::same_as<std::tuple<int, sockaddr_storage>>;
+    ->std::same_as<int>;
 
     {
         p.send(fd, buff, cb)
@@ -40,11 +40,6 @@ concept SocketProactor = bco::Proactor<T>
 
     {
         p.send(fd, buff)
-    }
-    ->std::same_as<int>;
-
-    {
-        p.sendto(fd, buff, addr, cb)
     }
     ->std::same_as<int>;
 

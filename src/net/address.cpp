@@ -3,8 +3,10 @@
 #include <Windows.h>
 #include <WS2tcpip.h>
 #else
-#include <>
+#include <netinet/in.h>
 #endif
+
+#include <cstring>
 
 #include <bco/net/address.h>
 

@@ -12,6 +12,7 @@
 #include <vector>
 
 #include <bco/proactor.h>
+#include <bco/executor.h>
 #include <bco/net/address.h>
 
 namespace bco {
@@ -21,10 +22,11 @@ namespace net {
 class Epoll {
     enum class Action : uint32_t {
         None = 0,
-        Read = 0b00001,
-        Write = 0b00010,
-        Accept = 0b00100,
-        Connect = 0b01000,
+        Recv = 0b00001,
+        Send = 0b00010,
+        Recvfrom = 0b00100,
+        Accept = 0b01000,
+        Connect = 0b10000,
     };
     friend Action operator|(const Action& lhs, const Action& rhs);
     friend Action operator&(const Action& lhs, const Action& rhs);
@@ -33,6 +35,7 @@ class Epoll {
     struct EpollItem {
         std::span<std::byte> buff;
         std::function<void(int)> cb;
+        std::function<void(int, const sockaddr_storage&)> cb2;
     };
     struct EpollTask {
         epoll_event event;
@@ -59,7 +62,7 @@ public:
     Epoll();
     ~Epoll();
 
-    void start();
+    void start(ExecutorInterface* executor);
     void stop();
 
     int create(int domain, int type);
@@ -68,12 +71,11 @@ public:
 
     int recv(int s, std::span<std::byte> buff, std::function<void(int)> cb);
 
-    std::tuple<int, sockaddr_storage> recvfrom(int s, std::span<std::byte> buff, std::function<void(int, const sockaddr_storage&)> cb);
+    int recvfrom(int s, std::span<std::byte> buff, std::function<void(int, const sockaddr_storage&)> cb);
 
     int send(int s, std::span<std::byte> buff, std::function<void(int)> cb);
     int send(int s, std::span<std::byte> buff);
 
-    int sendto(int s, std::span<std::byte> buff, const sockaddr_storage& addr, std::function<void(int)>);
     int sendto(int s, std::span<std::byte> buff, const sockaddr_storage& addr);
 
     int accept(int listen_fd, std::function<void(int s)> cb);
@@ -86,22 +88,26 @@ public:
 private:
     std::map<int, EpollTask> get_pending_tasks();
     void submit_tasks(std::map<int, EpollTask>& pending_tasks);
+    void do_io();
+    int send_sync(int s, std::span<std::byte> buff, std::function<void(int)> cb);
+    int send_async(int s, std::span<std::byte> buff, std::function<void(int)> cb);
     void epoll_loop();
     int next_timeout();
     void on_io_event(const epoll_event& event);
-    void do_read(EpollTask& task);
+    void do_recv(EpollTask& task);
+    void do_recvfrom(EpollTask& task);
     void do_accept(EpollTask& task);
-    void do_write(EpollTask& task);
+    void do_send(EpollTask& task);
     void on_connected(EpollTask& task);
 
 private:
     std::mutex mtx_;
-    std::thread harvest_thread_;
     int epoll_fd_;
     int exit_fd_;
     std::map<int, EpollTask> pending_tasks_;
     std::map<int, EpollTask> flying_tasks_;
     std::vector<PriorityTask> completed_task_;
+    ExecutorInterface* io_executor_;
 };
 
 inline Epoll::Action operator|(const Epoll::Action& lhs, const Epoll::Action& rhs)

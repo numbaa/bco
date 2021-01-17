@@ -27,6 +27,19 @@ void SimpleExecutor::post_delay(std::chrono::microseconds duration, PriorityTask
 
 void SimpleExecutor::start()
 {
+    thread_ = std::thread {std::bind(&SimpleExecutor::do_start, this)};
+    std::unique_lock lock { mutex_ };
+    cv_.wait(lock, [this]() { return started_; });
+}
+
+void SimpleExecutor::do_start()
+{
+    {
+        std::lock_guard lock { mutex_ };
+        started_ = true;
+    }
+    cv_.notify_one();
+
     while (true) {
         mutex_.lock();
         auto old_tasks = std::move(tasks_);
@@ -48,6 +61,11 @@ void SimpleExecutor::start()
 void SimpleExecutor::set_proactor_task_getter(std::function<std::vector<PriorityTask>()> func)
 {
     get_proactor_task_ = func;
+}
+
+bool SimpleExecutor::is_current_executor()
+{
+    return std::this_thread::get_id() == thread_.get_id();
 }
 
 } //namespace bco

@@ -39,14 +39,14 @@ template <SocketProactor P>
 ProactorTask<int> UdpSocket<P>::recv(std::span<std::byte> buffer)
 {
     ProactorTask<int> task;
-    int size = proactor_->recv(socket_, buffer, [task](int length) mutable {
+    int error = proactor_->recv(socket_, buffer, [task](int length) mutable {
         if (task.await_ready())
             return;
         task.set_result(std::forward<int>(length));
         task.resume();
     });
-    if (size > 0) {
-        task.set_result(std::forward<int>(size));
+    if (error < 0) {
+        task.set_result(std::forward<int>(error));
     }
     return task;
 }
@@ -55,14 +55,14 @@ template <SocketProactor P>
 ProactorTask<std::tuple<int, Address>> UdpSocket<P>::recvfrom(std::span<std::byte> buffer)
 {
     ProactorTask<std::tuple<int, Address>> task;
-    auto [size, remote_addr] = proactor_->recvfrom(socket_, buffer, [task](int length, const sockaddr_storage& remote_addr) mutable {
+    auto error = proactor_->recvfrom(socket_, buffer, [task](int length, const sockaddr_storage& remote_addr) mutable {
         if (task.await_ready())
             return;
         task.set_result(std::make_tuple(length, Address::from_storage(remote_addr)));
         task.resume();
     });
-    if (size > 0) {
-        task.set_result(std::make_tuple(size, Address::from_storage(remote_addr)));
+    if (error < 0) {
+        task.set_result(std::make_tuple(error, Address{}));
     }
     return task;
 }
