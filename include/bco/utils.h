@@ -90,9 +90,13 @@ public:
     }
     void done()
     {
-        std::lock_guard lock { mtx_ };
-        size_ -= 1;
-        if (size_ == 0)
+        int size;
+        {
+            std::lock_guard lock { mtx_ };
+            size_ -= 1;
+            size = size;
+        }
+        if (size == 0)
             cv_.notify_one();
     }
     void wait()

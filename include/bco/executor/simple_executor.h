@@ -1,7 +1,8 @@
 #pragma once
-#include <deque>
+#include <queue>
 #include <functional>
 #include <mutex>
+
 #include <bco/executor.h>
 
 namespace bco {
@@ -22,12 +23,19 @@ public:
 
 private:
     void do_start();
+    void wake_up();
+    inline std::deque<PriorityTask> get_pending_tasks();
+    inline std::tuple<std::vector<PriorityTask>, std::chrono::microseconds> get_timeup_delay_tasks();
 
 private:
     std::function<std::vector<PriorityTask>()> get_proactor_task_;
     std::deque<PriorityTask> tasks_;
+    std::priority_queue<PriorityDelayTask> delay_tasks_;
     std::mutex mutex_;
-    std::condition_variable cv_;
+    std::condition_variable sleep_cv_;
+    bool wakeup_ = true;
+    std::mutex startup_mtx_;
+    std::condition_variable startup_cv_;
     std::thread thread_;
     bool started_ = false;
 };
