@@ -53,7 +53,8 @@ add_library(${PROJECT_NAME} STATIC
     "src/net/udp.cpp"
     "src/net/address.cpp"
     "src/coroutine/cofunc.cpp"
-    "include/bco/coroutine/channel.h" "src/trick.cpp")
+    "include/bco/coroutine/channel.h"
+    "src/trick.cpp")
 
  if(WIN32)
  target_link_libraries(${PROJECT_NAME}

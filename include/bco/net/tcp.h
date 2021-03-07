@@ -16,10 +16,10 @@ public:
     TcpSocket() = default;
     TcpSocket(P* proactor, int family, int fd = -1);
 
-    [[nodiscard]] ProactorTask<int> recv(std::span<std::byte> buffer);
-    [[nodiscard]] ProactorTask<int> send(std::span<std::byte> buffer);
-    [[nodiscard]] ProactorTask<TcpSocket> accept();
-    [[nodiscard]] ProactorTask<int> connect(const Address& addr);
+    [[nodiscard]] Task<int> recv(std::span<std::byte> buffer);
+    [[nodiscard]] Task<int> send(std::span<std::byte> buffer);
+    [[nodiscard]] Task<TcpSocket> accept();
+    [[nodiscard]] Task<int> connect(const Address& addr);
     int listen(int backlog);
     int bind(const Address& addr);
 

@@ -21,11 +21,11 @@ public:
             item.task.set_result(std::move(value));
             auto ctx = task.ctx.lock();
             if (ctx != nullptr) {
-                ctx->spawn([item]() -> Task<> { co_await item.task; });
+                ctx->spawn([item]() -> Routine { co_await item.task; });
             }
         }
     }
-    ProactorTask<T> recv()
+    Task<T> recv()
     {
         std::lock_guard lock { mtx_ };
         if (ready_.empty()) {
@@ -34,7 +34,7 @@ public:
             pending_tasks_.push_back(item.task);
             return item.task;
         } else {
-            ProactorTask<T> task;
+            Task<T> task;
             T value = ready_values_.front();
             ready_values_.pop_front();
             task.set_result(std::move(value));
@@ -45,7 +45,7 @@ public:
 private:
     // Context ctx_;
     struct Item {
-        ProactorTask<T> task;
+        Task<T> task;
         std::shared_ptr<detail::ContextBase> ctx;
     };
     std::deque<Item> pending_tasks_;

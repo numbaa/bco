@@ -14,8 +14,8 @@ public:
     UdpSocket() = default;
     UdpSocket(P* proactor, int family, int fd = -1);
 
-    [[nodiscard]] ProactorTask<int> recv(std::span<std::byte> buffer);
-    [[nodiscard]] ProactorTask<std::tuple<int, Address>> recvfrom(std::span<std::byte> buffer);
+    [[nodiscard]] Task<int> recv(std::span<std::byte> buffer);
+    [[nodiscard]] Task<std::tuple<int, Address>> recvfrom(std::span<std::byte> buffer);
     int connect(const Address& addr);
     int send(std::span<std::byte> buffer);
     int sendto(std::span<std::byte> buffer, const Address& addr);

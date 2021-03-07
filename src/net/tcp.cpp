@@ -36,9 +36,9 @@ TcpSocket<P>::TcpSocket(P* proactor, int family, int fd)
 }
 
 template <SocketProactor P>
-ProactorTask<int> TcpSocket<P>::recv(std::span<std::byte> buffer)
+Task<int> TcpSocket<P>::recv(std::span<std::byte> buffer)
 {
-    ProactorTask<int> task;
+    Task<int> task;
     int error = proactor_->recv(socket_, buffer, [task](int length) mutable {
         if (task.await_ready())
             return;
@@ -52,9 +52,9 @@ ProactorTask<int> TcpSocket<P>::recv(std::span<std::byte> buffer)
 }
 
 template <SocketProactor P>
-ProactorTask<int> TcpSocket<P>::send(std::span<std::byte> buffer)
+Task<int> TcpSocket<P>::send(std::span<std::byte> buffer)
 {
-    ProactorTask<int> task;
+    Task<int> task;
     int size = proactor_->send(socket_, buffer, [task](int length) mutable {
         if (task.await_ready())
             return;
@@ -68,9 +68,9 @@ ProactorTask<int> TcpSocket<P>::send(std::span<std::byte> buffer)
 }
 
 template <SocketProactor P>
-ProactorTask<TcpSocket<P>> TcpSocket<P>::accept()
+Task<TcpSocket<P>> TcpSocket<P>::accept()
 {
-    ProactorTask<TcpSocket> task;
+    Task<TcpSocket> task;
     auto proactor = proactor_;
     int fd = proactor_->accept(socket_, [task, proactor](int fd) mutable {
         if (task.await_ready())
@@ -89,9 +89,9 @@ ProactorTask<TcpSocket<P>> TcpSocket<P>::accept()
 }
 
 template <SocketProactor P>
-ProactorTask<int> TcpSocket<P>::connect(const Address& addr)
+Task<int> TcpSocket<P>::connect(const Address& addr)
 {
-    ProactorTask<int> task;
+    Task<int> task;
     int ret = proactor_->connect(socket_, addr.to_storage(), [task](int ret) mutable {
         if (ret == 0) {
             task.set_result(0);

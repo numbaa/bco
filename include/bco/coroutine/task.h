@@ -3,48 +3,56 @@
 #include <functional>
 #include <memory>
 #include <optional>
-
+#include <bco/utils.h>
 #include "task.inl"
 
 namespace bco {
 
 template <typename T = void>
-class Task;
+class Func;
 
 template <typename T>
-class Task {
+class Func {
 public:
-    friend class detail::PromiseType<Task, T>;
-    using promise_type = detail::PromiseType<Task, T>;
+    friend class detail::PromiseType<Func, T>;
+    using promise_type = detail::PromiseType<Func, T>;
     auto operator co_await()
     {
         return detail::Awaitable<promise_type> { coroutine_ };
     }
 
 private:
-    Task(std::coroutine_handle<promise_type> coroutine)
+    Func(std::coroutine_handle<promise_type> coroutine)
         : coroutine_(coroutine)
     {
     }
     std::coroutine_handle<promise_type> coroutine_;
 };
 
-class RootTask : public std::suspend_never {
+class Routine : public std::suspend_never {
 public:
     class promise_type {
     public:
-        RootTask get_return_object()
+        Routine get_return_object()
         {
             //coroutine_ = std::coroutine_handle<promise_type>::from_promise(*this);
-            return RootTask {};
+            auto ctx = get_current_context().lock();
+            if (ctx == nullptr) {
+                return Routine {};
+            } else {
+                auto routine = Routine {};
+                //TODO: ctx->add_routine(routine);
+                return routine;
+            }
         }
         std::suspend_never initial_suspend()
         {
             return {};
         }
-        std::suspend_never final_suspend()
+        std::suspend_never final_suspend() noexcept
         {
-            //coroutine_.destroy();
+            //TODO: 在此处告诉ContextBase我没了
+            // ctx->del_routine();
             return {};
         }
         void unhandled_exception()
@@ -56,18 +64,19 @@ public:
 
     private:
         //std::coroutine_handle<promise_type> coroutine_;
+        std::weak_ptr<bco::detail::ContextBase> ctx_;
     };
 };
 
 template <typename T = void>
-class ProactorTask {
+class Task {
     struct SharedContext {
         std::optional<T> result_;
         std::coroutine_handle<> caller_coroutine_;
     };
 
 public:
-    ProactorTask()
+    Task()
         : ctx_(new SharedContext)
     {
     }
@@ -90,14 +99,14 @@ protected:
 };
 
 template <>
-class ProactorTask<void> {
+class Task<void> {
     struct SharedContext {
         bool done_ = false;
         std::coroutine_handle<> caller_coroutine_;
     };
 
 public:
-    ProactorTask()
+    Task()
         : ctx_(new SharedContext)
     {
     }

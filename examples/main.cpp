@@ -35,7 +35,7 @@ public:
 
     void start()
     {
-        ctx_->spawn(std::move([shared_this = this->shared_from_this()]() -> bco::Task<> {
+        ctx_->spawn(std::move([shared_this = this->shared_from_this()]() -> bco::Routine {
             auto [socket, error] = bco::net::TcpSocket<P>::create(shared_this->ctx_->socket_proactor(), AF_INET);
             if (error < 0) {
                 std::cerr << "Create socket failed with " << error << std::endl;
@@ -63,7 +63,7 @@ public:
     }
 
 private:
-    bco::Task<> serve(std::shared_ptr<EchoServer> shared_this, bco::net::TcpSocket<P> sock)
+    bco::Routine serve(std::shared_ptr<EchoServer> shared_this, bco::net::TcpSocket<P> sock)
     {
         std::array<uint8_t, 1024> data;
         while (true) {

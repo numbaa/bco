@@ -50,9 +50,9 @@ public:
     {
         executor_->set_proactor_task_getter(std::bind(&Context::get_proactor_tasks, this));
     }
-    void spawn(std::function<Task<>()>&& coroutine)
+    void spawn(std::function<Routine()>&& coroutine)
     {
-        executor_->post(PriorityTask { 0, std::bind(&Context::spawn_aux1, this, coroutine) });
+        executor_->post(PriorityTask { 0, std::bind(&Context::spawn_aux, this, coroutine) });
     }
     void set_executor(std::unique_ptr<ExecutorInterface>&& executor)
     {
@@ -65,15 +65,10 @@ public:
     }
 
 private:
-    void spawn_aux1(std::function<Task<>()> coroutine)
+    void spawn_aux(std::function<Routine()> coroutine)
     {
-        spawn_aux2(std::move(coroutine));
+        coroutine();
     }
-    RootTask spawn_aux2(std::function<Task<>()>&& coroutine)
-    {
-        co_await coroutine();
-    }
-
 
 };
 

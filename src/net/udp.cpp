@@ -36,9 +36,9 @@ UdpSocket<P>::UdpSocket(P* proactor, int family, int fd)
 }
 
 template <SocketProactor P>
-ProactorTask<int> UdpSocket<P>::recv(std::span<std::byte> buffer)
+Task<int> UdpSocket<P>::recv(std::span<std::byte> buffer)
 {
-    ProactorTask<int> task;
+    Task<int> task;
     int error = proactor_->recv(socket_, buffer, [task](int length) mutable {
         if (task.await_ready())
             return;
@@ -52,9 +52,9 @@ ProactorTask<int> UdpSocket<P>::recv(std::span<std::byte> buffer)
 }
 
 template <SocketProactor P>
-ProactorTask<std::tuple<int, Address>> UdpSocket<P>::recvfrom(std::span<std::byte> buffer)
+Task<std::tuple<int, Address>> UdpSocket<P>::recvfrom(std::span<std::byte> buffer)
 {
-    ProactorTask<std::tuple<int, Address>> task;
+    Task<std::tuple<int, Address>> task;
     auto error = proactor_->recvfrom(socket_, buffer, [task](int length, const sockaddr_storage& remote_addr) mutable {
         if (task.await_ready())
             return;

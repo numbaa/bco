@@ -12,7 +12,7 @@ namespace bco {
 
 namespace detail {
 
-class SwitchTask : public ProactorTask<> {
+class SwitchTask : public Task<> {
 public:
     SwitchTask(ExecutorInterface* executor);
     void await_suspend(std::coroutine_handle<> coroutine) noexcept;
@@ -20,7 +20,7 @@ private:
     ExecutorInterface* executor_;
 };
 
-class DelayTask : public ProactorTask<> {
+class DelayTask : public Task<> {
 public:
     DelayTask(ExecutorInterface* executor, std::chrono::microseconds duration);
     void await_suspend(std::coroutine_handle<> coroutine) noexcept;
@@ -30,7 +30,7 @@ private:
 };
 
 template <typename Callable>
-class ExecutorTask : public ProactorTask<std::invoke_result<Callable>> {
+class ExecutorTask : public Task<std::invoke_result<Callable>> {
 public:
     ExecutorTask(
         ExecutorInterface* current_executor,
