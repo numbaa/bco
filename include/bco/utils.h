@@ -111,4 +111,10 @@ private:
     uint32_t size_;
 };
 
+namespace detail {
+class ContextBase;
+}
+
+std::weak_ptr<detail::ContextBase> get_current_context();
+
 }

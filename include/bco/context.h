@@ -9,6 +9,23 @@
 namespace bco
 {
 
+namespace detail {
+
+class ContextBase : public ::std::enable_shared_from_this<ContextBase> {
+public:
+    ContextBase() = default;
+    void start()
+    {
+        executor_->set_context(weak_from_this());
+        executor_->start();
+    }
+
+protected:
+    std::unique_ptr<ExecutorInterface> executor_;
+};
+
+}
+
 template <typename...Types>
 class Context;
 
@@ -25,17 +42,13 @@ public:
 
 
 template <typename T> requires Proactor<T>
-class Context<T> : public T::GetterSetter {
+class Context<T> : public T::GetterSetter, public detail::ContextBase {
 public:
     Context() = default;
     Context(std::unique_ptr<ExecutorInterface>&& executor)
         : executor_(std::move(executor))
     {
         executor_->set_proactor_task_getter(std::bind(&Context::get_proactor_tasks, this));
-    }
-    void start()
-    {
-        executor_->start();
     }
     void spawn(std::function<Task<>()>&& coroutine)
     {
@@ -61,8 +74,7 @@ private:
         co_await coroutine();
     }
 
-private:
-    std::unique_ptr<ExecutorInterface> executor_;
+
 };
 
 } // namespace bco

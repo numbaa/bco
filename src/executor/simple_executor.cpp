@@ -7,6 +7,8 @@
 
 namespace bco {
 
+void set_current_thread_context(std::weak_ptr<detail::ContextBase> ctx);
+
 SimpleExecutor::~SimpleExecutor()
 {
     //TODO: implement
@@ -38,6 +40,7 @@ void SimpleExecutor::do_start()
         std::lock_guard lock { startup_mtx_ };
         started_ = true;
     }
+    set_current_thread_context(ctx_);
     startup_cv_.notify_one();
 
     while (true) {
@@ -103,6 +106,11 @@ void SimpleExecutor::set_proactor_task_getter(std::function<std::vector<Priority
 bool SimpleExecutor::is_current_executor()
 {
     return std::this_thread::get_id() == thread_.get_id();
+}
+
+void SimpleExecutor::set_context(std::weak_ptr<detail::ContextBase> ctx)
+{
+    ctx_ = ctx;
 }
 
 } //namespace bco

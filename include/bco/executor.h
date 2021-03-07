@@ -6,6 +6,10 @@
 
 namespace bco {
 
+namespace detail {
+class ContextBase;
+}
+
 class ExecutorInterface {
 public:
     virtual ~ExecutorInterface() {};
@@ -14,6 +18,7 @@ public:
     virtual void start() = 0;
     virtual void set_proactor_task_getter(std::function<std::vector<PriorityTask>()> func) = 0;
     virtual bool is_current_executor() = 0;
+    virtual void set_context(std::weak_ptr<detail::ContextBase> ctx);
 };
 
 ExecutorInterface* get_current_executor();

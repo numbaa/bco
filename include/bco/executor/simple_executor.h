@@ -20,6 +20,7 @@ public:
     void start() override;
     void set_proactor_task_getter(std::function<std::vector<PriorityTask>()> func) override;
     bool is_current_executor();
+    void set_context(std::weak_ptr<detail::ContextBase> ctx) override;
 
 private:
     void do_start();
@@ -38,6 +39,7 @@ private:
     std::condition_variable startup_cv_;
     std::thread thread_;
     bool started_ = false;
+    std::weak_ptr<detail::ContextBase> ctx_;
 };
 
 } //namespace bco
