@@ -10,6 +10,7 @@
 
 #include <bco/proactor.h>
 #include <bco/net/address.h>
+#include <bco/buffer.h>
 
 
 namespace bco {
@@ -41,14 +42,14 @@ public:
     int bind(int s, const sockaddr_storage& addr);
     int listen(int s, int backlog);
 
-    int recv(int s, std::span<std::byte> buff, std::function<void(int)> cb);
+    int recv(int s, bco::Buffer buff, std::function<void(int)> cb);
 
-    int recvfrom(int s, std::span<std::byte> buff, std::function<void(int, const sockaddr_storage&)> cb);
+    int recvfrom(int s, bco::Buffer buff, std::function<void(int, const sockaddr_storage&)> cb);
 
-    int send(int s, std::span<std::byte> buff, std::function<void(int)> cb);
-    int send(int s, std::span<std::byte> buff);
+    int send(int s, bco::Buffer buff, std::function<void(int)> cb);
+    int send(int s, bco::Buffer buff);
 
-    int sendto(int s, std::span<std::byte> buff, const sockaddr_storage& addr);
+    int sendto(int s, bco::Buffer buff, const sockaddr_storage& addr);
 
     int accept(int listen_fd, std::function<void(int s)> cb);
 

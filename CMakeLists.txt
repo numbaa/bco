@@ -54,7 +54,9 @@ add_library(${PROJECT_NAME} STATIC
     "src/net/address.cpp"
     "src/coroutine/cofunc.cpp"
     "include/bco/coroutine/channel.h"
-    "src/trick.cpp")
+    "src/trick.cpp"
+    "include/bco/buffer.h"
+    "src/buffer.cpp")
 
  if(WIN32)
  target_link_libraries(${PROJECT_NAME}

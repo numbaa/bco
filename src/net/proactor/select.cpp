@@ -10,7 +10,7 @@ namespace bco {
 
 namespace net {
 
-Select::SelectTask::SelectTask(int _fd, Action _action, std::span<std::byte> _buff, std::function<void(int)> _cb)
+Select::SelectTask::SelectTask(int _fd, Action _action, bco::Buffer _buff, std::function<void(int)> _cb)
     : fd(_fd)
     , action(_action)
     , buff(_buff)
@@ -18,7 +18,7 @@ Select::SelectTask::SelectTask(int _fd, Action _action, std::span<std::byte> _bu
 {
 }
 
-Select::SelectTask::SelectTask(int _fd, Action _action, std::span<std::byte> _buff, std::function<void(int, const sockaddr_storage&)> _cb)
+Select::SelectTask::SelectTask(int _fd, Action _action, bco::Buffer _buff, std::function<void(int, const sockaddr_storage&)> _cb)
     : fd(_fd)
     , action(_action)
     , buff(_buff)
@@ -29,7 +29,7 @@ Select::SelectTask::SelectTask(int _fd, Action _action, std::span<std::byte> _bu
 Select::Select()
 {
     max_rfd_ = std::max(stop_event_.fd(), max_rfd_);
-    pending_rfds_[stop_event_.fd()] = SelectTask { stop_event_.fd(), Action::Recv, std::span<std::byte> {}, std::function<void(int)> {} };
+    pending_rfds_[stop_event_.fd()] = SelectTask { stop_event_.fd(), Action::Recv, bco::Buffer {}, std::function<void(int)> {} };
 }
 
 Select::~Select()
@@ -69,7 +69,7 @@ void Select::stop()
     stop_event_.emit();
 }
 
-int Select::recv(int s, std::span<std::byte> buff, std::function<void(int length)> cb)
+int Select::recv(int s, bco::Buffer buff, std::function<void(int length)> cb)
 {
     std::lock_guard lock { mtx_ };
     if (s > max_rfd_)
@@ -78,7 +78,7 @@ int Select::recv(int s, std::span<std::byte> buff, std::function<void(int length
     return 0;
 }
 
-int Select::recvfrom(int s, std::span<std::byte> buff, std::function<void(int, const sockaddr_storage&)> cb)
+int Select::recvfrom(int s, bco::Buffer buff, std::function<void(int, const sockaddr_storage&)> cb)
 {
     std::lock_guard lock { mtx_ };
     if (s > max_rfd_)
@@ -88,7 +88,7 @@ int Select::recvfrom(int s, std::span<std::byte> buff, std::function<void(int, c
 }
 
 //for tcp
-int Select::send(int s, std::span<std::byte> buff, std::function<void(int)> cb)
+int Select::send(int s, bco::Buffer buff, std::function<void(int)> cb)
 {
     if (io_executor_->is_current_executor()) {
         return send_sync(s, buff, cb);
@@ -97,9 +97,9 @@ int Select::send(int s, std::span<std::byte> buff, std::function<void(int)> cb)
     }
 }
 
-int Select::send_sync(int s, std::span<std::byte> buff, std::function<void(int)> cb)
+int Select::send_sync(int s, bco::Buffer buff, std::function<void(int)> cb)
 {
-    int bytes = ::send(s, reinterpret_cast<const char*>(buff.data()), static_cast<int>(buff.size()), 0);
+    int bytes = syscall_sendv(s, buff);
     if (bytes >= 0)
         return bytes;
     else if (last_error() == EAGAIN || last_error() == EWOULDBLOCK)
@@ -108,7 +108,7 @@ int Select::send_sync(int s, std::span<std::byte> buff, std::function<void(int)>
         return -last_error();
 }
 
-int Select::send_async(int s, std::span<std::byte> buff, std::function<void(int)> cb)
+int Select::send_async(int s, bco::Buffer buff, std::function<void(int)> cb)
 {
     std::lock_guard lock { mtx_ };
     if (s > max_wfd_)
@@ -118,9 +118,9 @@ int Select::send_async(int s, std::span<std::byte> buff, std::function<void(int)
 }
 
 //for udp
-int Select::send(int s, std::span<std::byte> buff)
+int Select::send(int s, bco::Buffer buff)
 {
-    int bytes = ::send(s, reinterpret_cast<const char*>(buff.data()), static_cast<int>(buff.size()), 0);
+    int bytes = syscall_sendv(s, buff);
     if (bytes == -1)
         return -last_error();
     else
@@ -128,15 +128,9 @@ int Select::send(int s, std::span<std::byte> buff)
 }
 
 //for udp
-int Select::sendto(int s, std::span<std::byte> buff, const sockaddr_storage& addr)
+int Select::sendto(int s, bco::Buffer buff, const sockaddr_storage& addr)
 {
-    int bytes = ::sendto(
-        s,
-        reinterpret_cast<const char*>(buff.data()),
-        static_cast<int>(buff.size()),
-        0,
-        reinterpret_cast<const sockaddr*>(&addr),
-        sizeof(addr));
+    int bytes = syscall_sendmsg(s, buff, addr);
     if (bytes == -1)
         return -last_error();
     else
@@ -152,7 +146,7 @@ int Select::connect(int s, const sockaddr_storage& addr, std::function<void(int)
     std::lock_guard lock { mtx_ };
     if (s > max_wfd_)
         max_wfd_ = s;
-    pending_wfds_[s] = SelectTask { s, Action::Connect, std::span<std::byte> {}, cb };
+    pending_wfds_[s] = SelectTask { s, Action::Connect, bco::Buffer {}, cb };
     return 0;
 }
 
@@ -171,7 +165,7 @@ int Select::accept(int s, std::function<void(int s)> cb)
     std::lock_guard lock { mtx_ };
     if (s > max_rfd_)
         max_rfd_ = s;
-    pending_rfds_[s] = SelectTask { s, Action::Accept, std::span<std::byte> {}, cb };
+    pending_rfds_[s] = SelectTask { s, Action::Accept, bco::Buffer {}, cb };
     return 0;
 }
 
@@ -258,7 +252,7 @@ void Select::do_accept(const SelectTask& task)
 
 void Select::do_recv(const SelectTask& task)
 {
-    int bytes = ::recv(task.fd, reinterpret_cast<char*>(task.buff.data()), static_cast<int>(task.buff.size()), 0);
+    int bytes = syscall_recvv(task.fd, task.buff);
     if (bytes >= 0 || (last_error() != EAGAIN && last_error() != EWOULDBLOCK)) {
         std::lock_guard lock { mtx_ };
         pending_rfds_.erase(task.fd);
@@ -272,7 +266,7 @@ void Select::do_recvfrom(const SelectTask& task)
 {
     sockaddr_storage addr;
     socklen_t len = sizeof(addr);
-    int bytes = ::recvfrom(task.fd, reinterpret_cast<char*>(task.buff.data()), static_cast<int>(task.buff.size()), 0, reinterpret_cast<sockaddr*>(&addr), &len);
+    int bytes = syscall_recvmsg(task.fd, task.buff, addr);
     if (bytes >= 0 || (last_error() != EAGAIN && last_error() != EWOULDBLOCK)) {
         std::lock_guard lock { mtx_ };
         pending_rfds_.erase(task.fd);
@@ -283,7 +277,7 @@ void Select::do_recvfrom(const SelectTask& task)
 
 void Select::do_send(const SelectTask& task)
 {
-    int bytes = ::send(task.fd, reinterpret_cast<const char*>(task.buff.data()), static_cast<int>(task.buff.size()), 0);
+    int bytes = syscall_sendv(task.fd, task.buff);
     if (bytes >= 0 || (last_error() != EAGAIN && last_error() != EWOULDBLOCK)) {
         std::lock_guard lock { mtx_ };
         pending_wfds_.erase(task.fd);

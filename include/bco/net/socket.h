@@ -7,10 +7,10 @@
 #endif // _WIN32
 #include <concepts>
 #include <cstdint>
-#include <span>
 
 #include <bco/proactor.h>
 #include <bco/net/address.h>
+#include <bco/buffer.h>
 
 namespace bco {
 
@@ -19,7 +19,7 @@ namespace net {
 template <typename T>
 concept SocketProactor = bco::Proactor<T>
     && requires(T p, int fd, int domain, int type, uint32_t timeout_ms,
-        const sockaddr_storage& addr, std::span<std::byte> buff,
+        const sockaddr_storage& addr, bco::Buffer buff,
         std::function<void(int)> cb, int backlog,
         std::function<void(int, const sockaddr_storage&)> cb2)
 {

@@ -90,17 +90,22 @@ void IOCP::stop()
     ::PostQueuedCompletionStatus(complete_port_, 0, kExitKey, nullptr);
 }
 
-int IOCP::recv(int s, std::span<std::byte> buff, std::function<void(int)> cb)
+int IOCP::recv(int s, bco::Buffer buff, std::function<void(int)> cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
     overlap_info->action = OverlapAction::Recv;
     overlap_info->cb = std::move(cb);
     overlap_info->sock = s;
     ::SecureZeroMemory((PVOID)&overlap_info->overlapped, sizeof(WSAOVERLAPPED));
-    WSABUF wsabuf {static_cast<ULONG>(buff.size()), reinterpret_cast<char*>(buff.data())};
+    auto slices = buff.data();
+    std::vector<WSABUF> wsabuf(slices.size());
+    for (size_t i = 0; i < wsabuf.size(); i++) {
+        wsabuf[i].buf = reinterpret_cast<CHAR*>(slices[i].data());
+        wsabuf[i].len = slices[i].size();
+    }
     DWORD flags = 0;
     DWORD bytes_transferred;
-    int ret = ::WSARecv(s, &wsabuf, 1, &bytes_transferred, &flags, &overlap_info->overlapped, nullptr);
+    int ret = ::WSARecv(s, wsabuf.data(), wsabuf.size(), &bytes_transferred, &flags, &overlap_info->overlapped, nullptr);
     if (ret == SOCKET_ERROR) {
         int last_error = ::WSAGetLastError();
         return last_error == WSA_IO_PENDING ? 0 : -last_error;
@@ -108,17 +113,22 @@ int IOCP::recv(int s, std::span<std::byte> buff, std::function<void(int)> cb)
     return 0;
 }
 
-int IOCP::recvfrom(int s, std::span<std::byte> buff, std::function<void(int, const sockaddr_storage&)> cb)
+int IOCP::recvfrom(int s, bco::Buffer buff, std::function<void(int, const sockaddr_storage&)> cb)
 {
     RecvfromOverlapInfo* overlap_info = new RecvfromOverlapInfo;
     overlap_info->action = OverlapAction::Recvfrom;
     overlap_info->cb2 = std::move(cb);
     overlap_info->sock = s;
     ::SecureZeroMemory((PVOID)&overlap_info->overlapped, sizeof(WSAOVERLAPPED));
-    WSABUF wsabuf { static_cast<ULONG>(buff.size()), reinterpret_cast<char*>(buff.data()) };
+    auto slices = buff.data();
+    std::vector<WSABUF> wsabuf(slices.size());
+    for (size_t i = 0; i < wsabuf.size(); i++) {
+        wsabuf[i].buf = reinterpret_cast<CHAR*>(slices[i].data());
+        wsabuf[i].len = slices[i].size();
+    }
     DWORD flags = 0;
     DWORD bytes_transferred;
-    int ret = ::WSARecvFrom(s, &wsabuf, 1, &bytes_transferred, &flags, reinterpret_cast<sockaddr*>(&overlap_info->addr), &overlap_info->len, &overlap_info->overlapped, nullptr);
+    int ret = ::WSARecvFrom(s, wsabuf.data(), wsabuf.size(), &bytes_transferred, &flags, reinterpret_cast<sockaddr*>(&overlap_info->addr), &overlap_info->len, &overlap_info->overlapped, nullptr);
     if (ret == SOCKET_ERROR) {
         int last_error = ::WSAGetLastError();
         return last_error == WSA_IO_PENDING ? 0 : -last_error;
@@ -126,17 +136,22 @@ int IOCP::recvfrom(int s, std::span<std::byte> buff, std::function<void(int, con
     return 0;
 }
 
-int IOCP::send(int s, std::span<std::byte> buff, std::function<void(int length)> cb)
+int IOCP::send(int s, bco::Buffer buff, std::function<void(int length)> cb)
 {
     OverlapInfo* overlap_info = new OverlapInfo;
     overlap_info->action = OverlapAction::Send;
     overlap_info->cb = std::move(cb);
     overlap_info->sock = s;
     ::SecureZeroMemory((PVOID)&overlap_info->overlapped, sizeof(WSAOVERLAPPED));
-    WSABUF wsabuf {static_cast<ULONG>(buff.size()), reinterpret_cast<char*>(buff.data())};
+    auto slices = buff.data();
+    std::vector<WSABUF> wsabuf(slices.size());
+    for (size_t i = 0; i < wsabuf.size(); i++) {
+        wsabuf[i].buf = reinterpret_cast<CHAR*>(slices[i].data());
+        wsabuf[i].len = slices[i].size();
+    }
     DWORD flags = 0;
     DWORD bytes_transferred;
-    int ret = ::WSASend(s, &wsabuf, 1, &bytes_transferred, flags, &overlap_info->overlapped, nullptr);
+    int ret = ::WSASend(s, wsabuf.data(), wsabuf.size(), &bytes_transferred, flags, &overlap_info->overlapped, nullptr);
     if (ret == SOCKET_ERROR) {
         int last_error = ::WSAGetLastError();
         return last_error == WSA_IO_PENDING ? 0 : last_error;
@@ -144,24 +159,18 @@ int IOCP::send(int s, std::span<std::byte> buff, std::function<void(int length)>
     return 0;
 }
 
-int IOCP::send(int s, std::span<std::byte> buff)
+int IOCP::send(int s, bco::Buffer buff)
 {
-    int bytes = ::send(s, reinterpret_cast<const char*>(buff.data()), static_cast<int>(buff.size()), 0);
+    int bytes = syscall_sendv(s, buff);
     if (bytes == -1)
         return -::WSAGetLastError();
     else
         return bytes;
 }
 
-int IOCP::sendto(int s, std::span<std::byte> buff, const sockaddr_storage& addr)
+int IOCP::sendto(int s, bco::Buffer buff, const sockaddr_storage& addr)
 {
-    int bytes = ::sendto(
-        s,
-        reinterpret_cast<const char*>(buff.data()),
-        static_cast<int>(buff.size()),
-        0,
-        reinterpret_cast<const sockaddr*>(&addr),
-        sizeof(addr));
+    int bytes = syscall_sendmsg(s, buff, addr);
     if (bytes == -1)
         return -::WSAGetLastError();
     else

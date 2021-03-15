@@ -66,7 +66,7 @@ void Epoll::stop()
     ::write(exit_fd_, &buff, sizeof(buff));
 }
 
-int Epoll::recv(int s, std::span<std::byte> buff, std::function<void(int)> cb)
+int Epoll::recv(int s,bco::Buffer buff, std::function<void(int)> cb)
 {
     std::lock_guard lock { mtx_ };
     auto it = pending_tasks_.find(s);
@@ -85,7 +85,7 @@ int Epoll::recv(int s, std::span<std::byte> buff, std::function<void(int)> cb)
     return 0;
 }
 
-int Epoll::send(int s, std::span<std::byte> buff, std::function<void(int)> cb)
+int Epoll::send(int s,bco::Buffer buff, std::function<void(int)> cb)
 {
     if (io_executor_->is_current_executor()) {
         return send_sync(s, buff, cb);
@@ -151,31 +151,28 @@ void Epoll::submit_tasks(std::map<int, Epoll::EpollTask>& pending_tasks)
             if ((task.second.action & Action::Send) != Action::None) {
                 it->second.action |= Action::Send;
                 it->second.event.events |= EPOLLOUT;
-it->second.write = task.second.write;
-//continue;
-            }
- else if ((task.second.action & Action::Accept) != Action::None) {
- it->second.action |= Action::Recv;
- it->second.event.events |= EPOLLIN;
- it->second.read = task.second.read;
- //continue;
-            }
- else if ((task.second.action & Action::Connect) != Action::None) {
- it->second.action |= Action::Send;
- it->second.event.events |= EPOLLOUT;
- it->second.write = task.second.write;
+                it->second.write = task.second.write;
+                //continue;
+            } else if ((task.second.action & Action::Accept) != Action::None) {
+                it->second.action |= Action::Recv;
+                it->second.event.events |= EPOLLIN;
+                it->second.read = task.second.read;
+                //continue;
+            } else if ((task.second.action & Action::Connect) != Action::None) {
+                it->second.action |= Action::Send;
+                it->second.event.events |= EPOLLOUT;
+                it->second.write = task.second.write;
             }
             int ret = epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, task.second.event.data.fd, &task.second.event);
             if (ret < 0) {
                 //error handling
             }
-        }
- else {
- flying_tasks_[task.second.event.data.fd] = task.second;
- int ret = epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, task.second.event.data.fd, &task.second.event);
- if (ret < 0) {
-     //error handling
- }
+        } else {
+            flying_tasks_[task.second.event.data.fd] = task.second;
+            int ret = epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, task.second.event.data.fd, &task.second.event);
+            if (ret < 0) {
+                //error handling
+            }
         }
     }
 }
@@ -204,9 +201,9 @@ void Epoll::do_io()
         .task = std::bind(&Epoll::do_io, this) });
 }
 
-int Epoll::send_sync(int s, std::span<std::byte> buff, std::function<void(int)> cb)
+int Epoll::send_sync(int s, bco::Buffer buff, std::function<void(int)> cb)
 {
-    int bytes = ::send(s, reinterpret_cast<const char*>(buff.data()), static_cast<int>(buff.size()), 0);
+    int bytes = syscall_sendv(s, buff);
     if (bytes >= 0)
         return bytes;
     else if (last_error() == EAGAIN || last_error() == EWOULDBLOCK)
@@ -215,7 +212,7 @@ int Epoll::send_sync(int s, std::span<std::byte> buff, std::function<void(int)> 
         return -last_error();
 }
 
-int Epoll::send_async(int s, std::span<std::byte> buff, std::function<void(int)> cb)
+int Epoll::send_async(int s,bco::Buffer buff, std::function<void(int)> cb)
 {
     std::lock_guard lock{ mtx_ };
     auto it = pending_tasks_.find(s);
@@ -271,7 +268,7 @@ void Epoll::on_io_event(const epoll_event& event)
 void Epoll::do_send(EpollTask& task)
 {
     auto& ioitem = task.write.value();
-    int bytes = ::write(task.event.data.fd, reinterpret_cast<void*>(ioitem.buff.data()), ioitem.buff.size());
+    int bytes = syscall_sendv(ioitem.fd, ioitem.buff);
     if (bytes >= 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
         std::lock_guard lock { mtx_ };
         uint32_t epollout = EPOLLOUT;
@@ -322,7 +319,7 @@ void Epoll::on_connected(EpollTask& task)
 void Epoll::do_recv(EpollTask& task)
 {
     auto& ioitem = task.read.value();
-    int bytes = ::read(task.event.data.fd, reinterpret_cast<void*>(ioitem.buff.data()), ioitem.buff.size());
+    int bytes = syscall_recvv(task.event.data.fd, ioitem.buff);
     if (bytes >= 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
         std::lock_guard lock { mtx_ };
         uint32_t epollin = EPOLLIN;
@@ -342,7 +339,7 @@ void Epoll::do_recvfrom(EpollTask& task)
     auto& ioitem = task.read.value();
     sockaddr_storage addr;
     socklen_t len = sizeof(addr);
-    int bytes = ::recvfrom(task.event.data.fd, reinterpret_cast<void*>(ioitem.buff.data()), ioitem.buff.size(), 0, reinterpret_cast<sockaddr*>(&addr), &len);
+    int bytes = syscall_recvmsg(task.event.data.fd, ioitem.buff, addr);
     if (bytes >= 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
         std::lock_guard lock { mtx_ };
         uint32_t epollin = EPOLLIN;

@@ -10,7 +10,6 @@
 #include <map>
 #include <memory>
 #include <mutex>
-#include <span>
 #include <thread>
 #include <vector>
 
@@ -18,6 +17,7 @@
 #include <bco/net/address.h>
 #include <bco/proactor.h>
 #include <bco/executor.h>
+#include <bco/buffer.h>
 
 namespace bco {
 
@@ -34,12 +34,12 @@ class Select {
     struct SelectTask {
         int fd;
         Action action;
-        std::span<std::byte> buff;
+        bco::Buffer buff;
         std::function<void(int)> cb;
         std::function<void(int, const sockaddr_storage&)> cb2;
         SelectTask() = default;
-        SelectTask(int _fd, Action _action, std::span<std::byte> _buff, std::function<void(int)> _cb);
-        SelectTask(int _fd, Action _action, std::span<std::byte> _buff, std::function<void(int, const sockaddr_storage&)> _cb);
+        SelectTask(int _fd, Action _action, bco::Buffer _buff, std::function<void(int)> _cb);
+        SelectTask(int _fd, Action _action, bco::Buffer _buff, std::function<void(int, const sockaddr_storage&)> _cb);
     };
 
 public:
@@ -67,15 +67,14 @@ public:
     int bind(int s, const sockaddr_storage& addr);
     int listen(int s, int backlog);
 
-    int recv(int s, std::span<std::byte> buff, std::function<void(int)> cb);
+    int recv(int s, bco::Buffer buff, std::function<void(int)> cb);
 
-    int recvfrom(int s, std::span<std::byte> buff, std::function<void(int, const sockaddr_storage&)> cb);
+    int recvfrom(int s, bco::Buffer buff, std::function<void(int, const sockaddr_storage&)> cb);
 
-    int send(int s, std::span<std::byte> buff, std::function<void(int)> cb);
-    int send(int s, std::span<std::byte> buff);
+    int send(int s, bco::Buffer buff, std::function<void(int)> cb);
+    int send(int s, bco::Buffer buff);
 
-    //int sendto(int s, std::span<std::byte> buff, const sockaddr_storage& addr, std::function<void(int)> cb);
-    int sendto(int s, std::span<std::byte> buff, const sockaddr_storage& addr);
+    int sendto(int s, bco::Buffer buff, const sockaddr_storage& addr);
 
     int accept(int s, std::function<void(int)> cb);
 
@@ -86,8 +85,8 @@ public:
 
 private:
     void do_io();
-    int send_sync(int s, std::span<std::byte> buff, std::function<void(int)> cb);
-    int send_async(int s, std::span<std::byte> buff, std::function<void(int)> cb);
+    int send_sync(int s, bco::Buffer buff, std::function<void(int)> cb);
+    int send_async(int s, bco::Buffer buff, std::function<void(int)> cb);
     void do_accept(const SelectTask& task);
     void do_recv(const SelectTask& task);
     void do_recvfrom(const SelectTask& task);
