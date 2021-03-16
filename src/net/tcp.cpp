@@ -36,7 +36,7 @@ TcpSocket<P>::TcpSocket(P* proactor, int family, int fd)
 }
 
 template <SocketProactor P>
-Task<int> TcpSocket<P>::recv(std::span<std::byte> buffer)
+Task<int> TcpSocket<P>::recv(bco::Buffer buffer)
 {
     Task<int> task;
     int error = proactor_->recv(socket_, buffer, [task](int length) mutable {
@@ -52,7 +52,7 @@ Task<int> TcpSocket<P>::recv(std::span<std::byte> buffer)
 }
 
 template <SocketProactor P>
-Task<int> TcpSocket<P>::send(std::span<std::byte> buffer)
+Task<int> TcpSocket<P>::send(bco::Buffer buffer)
 {
     Task<int> task;
     int size = proactor_->send(socket_, buffer, [task](int length) mutable {

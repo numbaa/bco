@@ -36,7 +36,7 @@ UdpSocket<P>::UdpSocket(P* proactor, int family, int fd)
 }
 
 template <SocketProactor P>
-Task<int> UdpSocket<P>::recv(std::span<std::byte> buffer)
+Task<int> UdpSocket<P>::recv(bco::Buffer buffer)
 {
     Task<int> task;
     int error = proactor_->recv(socket_, buffer, [task](int length) mutable {
@@ -52,7 +52,7 @@ Task<int> UdpSocket<P>::recv(std::span<std::byte> buffer)
 }
 
 template <SocketProactor P>
-Task<std::tuple<int, Address>> UdpSocket<P>::recvfrom(std::span<std::byte> buffer)
+Task<std::tuple<int, Address>> UdpSocket<P>::recvfrom(bco::Buffer buffer)
 {
     Task<std::tuple<int, Address>> task;
     auto error = proactor_->recvfrom(socket_, buffer, [task](int length, const sockaddr_storage& remote_addr) mutable {
@@ -68,13 +68,13 @@ Task<std::tuple<int, Address>> UdpSocket<P>::recvfrom(std::span<std::byte> buffe
 }
 
 template <SocketProactor P>
-int UdpSocket<P>::send(std::span<std::byte> buffer)
+int UdpSocket<P>::send(bco::Buffer buffer)
 {
     return proactor_->send(socket_, buffer);
 }
 
 template <SocketProactor P>
-int UdpSocket<P>::sendto(std::span<std::byte> buffer, const Address& addr)
+int UdpSocket<P>::sendto(bco::Buffer buffer, const Address& addr)
 {
     return proactor_->sendto(socket_, buffer, addr.to_storage());
 }

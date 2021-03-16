@@ -15,6 +15,7 @@
 #include <bco/utils.h>
 #include <bco/net/tcp.h>
 #include <bco/net/udp.h>
+#include <bco/buffer.h>
 
 #ifdef _WIN32
 #include <bco/net/proactor/iocp.h>
@@ -65,17 +66,17 @@ public:
 private:
     bco::Routine serve(std::shared_ptr<EchoServer> shared_this, bco::net::TcpSocket<P> sock)
     {
-        std::array<uint8_t, 1024> data;
+        bco::Buffer buffer(1024);
         while (true) {
-            std::span<std::byte> buffer((std::byte*)data.data(), data.size());
             int bytes_received = co_await sock.recv(buffer);
             if (bytes_received == 0) {
                 std::cout << "Stop serve one client\n";
                 co_return;
             }
-            std::cout << "Received: " << std::string((char*)buffer.data(), bytes_received);
-            int bytes_sent = co_await sock.send(std::span<std::byte> { buffer.data(), static_cast<size_t>(bytes_received) });
-            std::cout << "Sent: " << std::string((char*)buffer.data(), bytes_sent);
+            auto cdata = buffer.cdata();
+            std::cout << "Received: " << std::string((char*)cdata[0].data(), bytes_received);
+            int bytes_sent = co_await sock.send(buffer.subbuf(0, bytes_received));
+            std::cout << "Sent: " << std::string((char*)cdata[0].data(), bytes_sent);
         }
     }
 

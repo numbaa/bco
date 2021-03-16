@@ -101,11 +101,11 @@ int IOCP::recv(int s, bco::Buffer buff, std::function<void(int)> cb)
     std::vector<WSABUF> wsabuf(slices.size());
     for (size_t i = 0; i < wsabuf.size(); i++) {
         wsabuf[i].buf = reinterpret_cast<CHAR*>(slices[i].data());
-        wsabuf[i].len = slices[i].size();
+        wsabuf[i].len = static_cast<ULONG>(slices[i].size());
     }
     DWORD flags = 0;
     DWORD bytes_transferred;
-    int ret = ::WSARecv(s, wsabuf.data(), wsabuf.size(), &bytes_transferred, &flags, &overlap_info->overlapped, nullptr);
+    int ret = ::WSARecv(s, wsabuf.data(), static_cast<DWORD>(wsabuf.size()), &bytes_transferred, &flags, &overlap_info->overlapped, nullptr);
     if (ret == SOCKET_ERROR) {
         int last_error = ::WSAGetLastError();
         return last_error == WSA_IO_PENDING ? 0 : -last_error;
@@ -124,11 +124,11 @@ int IOCP::recvfrom(int s, bco::Buffer buff, std::function<void(int, const sockad
     std::vector<WSABUF> wsabuf(slices.size());
     for (size_t i = 0; i < wsabuf.size(); i++) {
         wsabuf[i].buf = reinterpret_cast<CHAR*>(slices[i].data());
-        wsabuf[i].len = slices[i].size();
+        wsabuf[i].len = static_cast<ULONG>(slices[i].size());
     }
     DWORD flags = 0;
     DWORD bytes_transferred;
-    int ret = ::WSARecvFrom(s, wsabuf.data(), wsabuf.size(), &bytes_transferred, &flags, reinterpret_cast<sockaddr*>(&overlap_info->addr), &overlap_info->len, &overlap_info->overlapped, nullptr);
+    int ret = ::WSARecvFrom(s, wsabuf.data(), static_cast<DWORD>(wsabuf.size()), &bytes_transferred, &flags, reinterpret_cast<sockaddr*>(&overlap_info->addr), &overlap_info->len, &overlap_info->overlapped, nullptr);
     if (ret == SOCKET_ERROR) {
         int last_error = ::WSAGetLastError();
         return last_error == WSA_IO_PENDING ? 0 : -last_error;
@@ -147,11 +147,11 @@ int IOCP::send(int s, bco::Buffer buff, std::function<void(int length)> cb)
     std::vector<WSABUF> wsabuf(slices.size());
     for (size_t i = 0; i < wsabuf.size(); i++) {
         wsabuf[i].buf = reinterpret_cast<CHAR*>(slices[i].data());
-        wsabuf[i].len = slices[i].size();
+        wsabuf[i].len = static_cast<ULONG>(slices[i].size());
     }
     DWORD flags = 0;
     DWORD bytes_transferred;
-    int ret = ::WSASend(s, wsabuf.data(), wsabuf.size(), &bytes_transferred, flags, &overlap_info->overlapped, nullptr);
+    int ret = ::WSASend(s, wsabuf.data(), static_cast<DWORD>(wsabuf.size()), &bytes_transferred, flags, &overlap_info->overlapped, nullptr);
     if (ret == SOCKET_ERROR) {
         int last_error = ::WSAGetLastError();
         return last_error == WSA_IO_PENDING ? 0 : last_error;

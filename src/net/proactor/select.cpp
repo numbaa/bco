@@ -265,7 +265,6 @@ void Select::do_recv(const SelectTask& task)
 void Select::do_recvfrom(const SelectTask& task)
 {
     sockaddr_storage addr;
-    socklen_t len = sizeof(addr);
     int bytes = syscall_recvmsg(task.fd, task.buff, addr);
     if (bytes >= 0 || (last_error() != EAGAIN && last_error() != EWOULDBLOCK)) {
         std::lock_guard lock { mtx_ };

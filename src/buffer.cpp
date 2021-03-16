@@ -4,13 +4,17 @@ namespace bco {
 
 namespace detail {
 
+BufferBase::BufferBase(size_t size)
+    : buffer_({ std::vector<uint8_t>(size) })
+{
+}
 BufferBase::BufferBase(const std::span<uint8_t> data)
-    : buffer_({data.begin(), data.end()})
+    : buffer_({ data.begin(), data.end() })
 {
 }
 
 BufferBase::BufferBase(std::vector<uint8_t>&& data)
-    : buffer_({std::move(data)})
+    : buffer_({ std::move(data) })
 {
 }
 
@@ -95,7 +99,7 @@ void BufferBase::insert(size_t index, std::vector<uint8_t>&& data)
 uint8_t& BufferBase::operator[](size_t index)
 {
     if (buffer_.empty())
-        throw std::exception {"Buffer is empty"};
+        throw std::exception { "Buffer is empty" };
     size_t curr_pos = 0;
     for (auto& chunk : buffer_) {
         if (chunk.size() + curr_pos > index) {
@@ -106,30 +110,42 @@ uint8_t& BufferBase::operator[](size_t index)
     throw std::exception { "Out of index" };
 }
 
-std::vector<std::span<uint8_t>> BufferBase::data()
+std::vector<std::span<uint8_t>> BufferBase::data(size_t start, size_t end)
 {
+    //TODO: 测试这个函数
     std::vector<std::span<uint8_t>> slices(buffer_.size());
+    size_t curr_pos = 0;
     for (auto& chunk : buffer_) {
-        slices.emplace_back(chunk.data(), chunk.size());
+        if (curr_pos >= end)
+            break;
+        if (curr_pos == start) {
+            slices.emplace_back(chunk.data(), chunk.size());
+        } else if (curr_pos + chunk.size() <= start) {
+            ;
+        } else if (curr_pos < start && curr_pos + chunk.size() > start) {
+            //比较 end 和 curr_pos + chunk.size()的大小，取小的
+            slices.emplace_back(chunk.data() + start - curr_pos, start - curr_pos);
+        } else if (curr_pos > start && curr_pos + chunk.size() <= end) {
+            slices.emplace_back(chunk.data(), chunk.size());
+        } else if (curr_pos > start && curr_pos + chunk.size() > end) {
+            slices.emplace_back(chunk.data(), end - curr_pos);
+        } else {
+            std::abort();
+        }
+        curr_pos += chunk.size();
     }
-    return std::move(slices);
+    return slices;
 }
-
-//const std::vector<std::span<uint8_t>> BufferBase::cdata() const
-//{
-//    std::vector<std::span<uint8_t>> slices(buffer_.size());
-//    for (auto& chunk : buffer_) {
-//        slices.emplace_back(chunk.data(), chunk.size());
-//    }
-//    return std::move(slices);
-//}
-
-
 
 } // namespace detail
 
 Buffer::Buffer()
     : base_(new detail::BufferBase)
+{
+}
+
+Buffer::Buffer(size_t size)
+    : base_(new detail::BufferBase { size })
 {
 }
 
@@ -145,42 +161,78 @@ Buffer::Buffer(std::vector<uint8_t>&& data)
 
 size_t Buffer::size() const
 {
-    return base_->size();
+    if (is_subbuf()) {
+        return end_ - start_;
+    } else {
+        return base_->size();
+    }
+}
+
+bool Buffer::is_subbuf() const
+{
+    return not(start_ == 0 && end_ == std::numeric_limits<decltype(end_)>::max());
+}
+
+Buffer Buffer::subbuf(size_t start, size_t end)
+{
+    return Buffer { start, end, base_ };
 }
 
 void Buffer::push_back(const std::span<uint8_t> data, bool new_slice)
 {
+    if (is_subbuf()) {
+        throw std::exception { "Unsupported function" };
+    }
     base_->push_back(data, new_slice);
 }
 
 void Buffer::push_back(std::vector<uint8_t>&& data, bool new_slice)
 {
+    if (is_subbuf()) {
+        throw std::exception { "Unsupported function" };
+    }
     base_->push_back(std::move(data), new_slice);
 }
 
 void Buffer::insert(size_t index, const std::span<uint8_t> data)
 {
+    if (is_subbuf()) {
+        throw std::exception { "Unsupported function" };
+    }
     base_->insert(index, data);
 }
 
 void Buffer::insert(size_t index, std::vector<uint8_t>&& data)
 {
+    if (is_subbuf()) {
+        throw std::exception { "Unsupported function" };
+    }
     base_->insert(index, std::move(data));
 }
 
 uint8_t& Buffer::operator[](size_t index)
 {
-    return base_->operator[](index);
+    if (is_subbuf() && index >= (end_ - start_)) {
+        throw std::exception { "Out of index" };
+    }
+    return base_->operator[](index + start_);
 }
 
 std::vector<std::span<uint8_t>> Buffer::data()
 {
-    return base_->data();
+    return base_->data(start_, end_);
 }
 
 const std::vector<std::span<uint8_t>> Buffer::cdata() const
 {
-    return base_->data();
+    return base_->data(start_, end_);
+}
+
+Buffer::Buffer(size_t start, size_t end, std::shared_ptr<detail::BufferBase> base)
+    : start_(start)
+    , end_(end)
+    , base_(base)
+{
 }
 
 } // namespace bco

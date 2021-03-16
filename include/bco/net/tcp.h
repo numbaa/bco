@@ -16,8 +16,8 @@ public:
     TcpSocket() = default;
     TcpSocket(P* proactor, int family, int fd = -1);
 
-    [[nodiscard]] Task<int> recv(std::span<std::byte> buffer);
-    [[nodiscard]] Task<int> send(std::span<std::byte> buffer);
+    [[nodiscard]] Task<int> recv(bco::Buffer buffer);
+    [[nodiscard]] Task<int> send(bco::Buffer buffer);
     [[nodiscard]] Task<TcpSocket> accept();
     [[nodiscard]] Task<int> connect(const Address& addr);
     int listen(int backlog);
