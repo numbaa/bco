@@ -21,6 +21,4 @@ public:
     virtual void set_context(std::weak_ptr<detail::ContextBase> ctx) = 0;
 };
 
-ExecutorInterface* get_current_executor();
-
 }

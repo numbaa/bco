@@ -8,6 +8,7 @@
 #include <bco/exception.h>
 #include <bco/net/event.h>
 #include <bco/utils.h>
+#include "../common.h"
 
 namespace bco {
 

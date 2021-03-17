@@ -3,26 +3,26 @@
 #include <memory>
 #include <string>
 
-#include <bco/bco.h>
-#include <bco/context.h>
-#include <bco/executor.h>
-#include <bco/executor/simple_executor.h>
-#include <bco/net/proactor/select.h>
-#include <bco/net/socket.h>
-#include <bco/net/udp.h>
-#include <bco/proactor.h>
-#include <bco/coroutine/cofunc.h>
-#include <bco/utils.h>
-#include <bco/net/tcp.h>
-#include <bco/net/udp.h>
-#include <bco/buffer.h>
+#include <bco.h>
+//#include <bco/context.h>
+//#include <bco/executor.h>
+//#include <bco/executor/simple_executor.h>
+//#include <bco/net/proactor/select.h>
+//#include <bco/net/socket.h>
+//#include <bco/net/udp.h>
+//#include <bco/proactor.h>
+//#include <bco/coroutine/cofunc.h>
+//#include <bco/utils.h>
+//#include <bco/net/tcp.h>
+//#include <bco/net/udp.h>
+//#include <bco/buffer.h>
 
-#ifdef _WIN32
-#include <bco/net/proactor/iocp.h>
-#else
-#include <arpa/inet.h>
-#include <bco/net/proactor/epoll.h>
-#endif
+//#ifdef _WIN32
+//#include <bco/net/proactor/iocp.h>
+//#else
+//#include <arpa/inet.h>
+//#include <bco/net/proactor/epoll.h>
+//#endif
 
 template <typename P> requires bco::net::SocketProactor<P>
 class EchoServer : public std::enable_shared_from_this<EchoServer<P>> {

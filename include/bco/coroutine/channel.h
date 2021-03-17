@@ -19,7 +19,7 @@ public:
             Item item = pending_tasks_.front();
             pending_tasks_.pop_front();
             item.task.set_result(std::move(value));
-            auto ctx = task.ctx.lock();
+            auto ctx = item.ctx.lock();
             if (ctx != nullptr) {
                 ctx->spawn([item]() -> Routine { co_await item.task; });
             }
@@ -28,7 +28,7 @@ public:
     Task<T> recv()
     {
         std::lock_guard lock { mtx_ };
-        if (ready_.empty()) {
+        if (ready_values_.empty()) {
             Item item;
             item.ctx = get_current_context();
             pending_tasks_.push_back(item.task);

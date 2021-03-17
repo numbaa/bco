@@ -19,6 +19,10 @@ public:
         executor_->set_context(weak_from_this());
         executor_->start();
     }
+    ExecutorInterface* executor()
+    {
+        return executor_.get();
+    }
 
 protected:
     std::unique_ptr<ExecutorInterface> executor_;

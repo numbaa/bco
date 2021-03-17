@@ -12,7 +12,7 @@
 
 #include <bco/net/proactor/iocp.h>
 #include <bco/executor.h>
-#include <bco/utils.h>
+#include "../../common.h"
 
 namespace bco {
 

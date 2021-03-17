@@ -28,7 +28,7 @@ endif()
 
 add_library(${PROJECT_NAME} STATIC
     ${PLAT_SPEC}
-    "include/bco/bco.h"
+    "include/bco.h"
     "include/bco/context.h"
     "include/bco/executor.h"
     
@@ -56,7 +56,10 @@ add_library(${PROJECT_NAME} STATIC
     "include/bco/coroutine/channel.h"
     "src/trick.cpp"
     "include/bco/buffer.h"
-    "src/buffer.cpp")
+    "src/buffer.cpp"
+    "src/common.h"
+    "src/common.cpp"
+    "src/utils.cpp")
 
  if(WIN32)
  target_link_libraries(${PROJECT_NAME}

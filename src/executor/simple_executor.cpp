@@ -7,8 +7,6 @@
 
 namespace bco {
 
-void set_current_thread_context(std::weak_ptr<detail::ContextBase> ctx);
-
 SimpleExecutor::~SimpleExecutor()
 {
     //TODO: implement
