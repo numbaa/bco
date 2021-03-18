@@ -1,8 +1,38 @@
 #include <bco/buffer.h>
+#include "magic.h"
 
 namespace bco {
 
 namespace detail {
+
+void BCO_UNIQUE_FUNC(bco_buffer)
+{
+    uint8_t u8;
+    uint16_t u16;
+    uint32_t u32;
+    uint64_t u64;
+    int8_t i8;
+    int16_t i16;
+    int32_t i32;
+    int64_t i64;
+    bco::Buffer buf;
+    buf.read_big_endian_at(0, u8);
+    buf.read_big_endian_at(0, u16);
+    buf.read_big_endian_at(0, u32);
+    buf.read_big_endian_at(0, u64);
+    buf.read_little_endian_at(0, u8);
+    buf.read_little_endian_at(0, u16);
+    buf.read_little_endian_at(0, u32);
+    buf.read_little_endian_at(0, u64);
+    buf.write_big_endian_at(0, u8);
+    buf.write_big_endian_at(0, u16);
+    buf.write_big_endian_at(0, u32);
+    buf.write_big_endian_at(0, u64);
+    buf.write_little_endian_at(0, u8);
+    buf.write_little_endian_at(0, u16);
+    buf.write_little_endian_at(0, u32);
+    buf.write_little_endian_at(0, u64);
+}
 
 BufferBase::BufferBase(size_t size)
     : buffer_({ std::vector<uint8_t>(size) })
@@ -159,6 +189,13 @@ Buffer::Buffer(std::vector<uint8_t>&& data)
 {
 }
 
+Buffer::Buffer(size_t start, size_t end, std::shared_ptr<detail::BufferBase> base)
+    : start_(start)
+    , end_(end)
+    , base_(base)
+{
+}
+
 size_t Buffer::size() const
 {
     if (is_subbuf()) {
@@ -218,21 +255,46 @@ uint8_t& Buffer::operator[](size_t index)
     return base_->operator[](index + start_);
 }
 
+const uint8_t& Buffer::operator[](size_t index) const
+{
+    if (is_subbuf() && index >= (end_ - start_)) {
+        throw std::exception { "Out of index" };
+    }
+    return base_->operator[](index + start_);
+}
+
 std::vector<std::span<uint8_t>> Buffer::data()
 {
     return base_->data(start_, end_);
 }
 
-const std::vector<std::span<uint8_t>> Buffer::cdata() const
+const std::vector<std::span<uint8_t>> Buffer::data() const
 {
     return base_->data(start_, end_);
 }
 
-Buffer::Buffer(size_t start, size_t end, std::shared_ptr<detail::BufferBase> base)
-    : start_(start)
-    , end_(end)
-    , base_(base)
+template <typename T>
+bool bco::Buffer::read_big_endian_at(size_t index, T& value)
 {
+    return false;
+}
+
+template <typename T>
+bool bco::Buffer::write_big_endian_at(size_t index, T value)
+{
+    return false;
+}
+
+template <typename T>
+bool bco::Buffer::read_little_endian_at(size_t index, T& value)
+{
+    return false;
+}
+
+template <typename T>
+bool bco::Buffer::write_little_endian_at(size_t index, T value)
+{
+    return false;
 }
 
 } // namespace bco

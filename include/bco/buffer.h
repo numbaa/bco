@@ -36,6 +36,17 @@ public:
     //const std::vector<std::span<uint8_t>> cdata() const;
     //Iterator begin();
     //Iterator end();
+    template <typename T>
+    bool read_big_endian_at(size_t index, T& value);
+    
+    template <typename T>
+    bool write_big_endian_at(size_t index, T value);
+
+    template <typename T>
+    bool read_little_endian_at(size_t index, T& value);
+
+    template <typename T>
+    bool write_little_endian_at(size_t index, T value);
 
 private:
     //friend class Iterator;
@@ -59,8 +70,21 @@ public:
     void insert(size_t index, const std::span<uint8_t> data);
     void insert(size_t index, std::vector<uint8_t>&& data);
     uint8_t& operator[](size_t index);
+    const uint8_t& operator[](size_t index) const;
     std::vector<std::span<uint8_t>> data();
-    const std::vector<std::span<uint8_t>> cdata() const;
+    const std::vector<std::span<uint8_t>> data() const;
+
+    template <typename T>
+    bool read_big_endian_at(size_t index, T& value);
+
+    template <typename T>
+    bool write_big_endian_at(size_t index, T value);
+
+    template <typename T>
+    bool read_little_endian_at(size_t index, T& value);
+
+    template <typename T>
+    bool write_little_endian_at(size_t index, T value);
 
 private:
     Buffer(size_t start, size_t end, std::shared_ptr<detail::BufferBase> base);

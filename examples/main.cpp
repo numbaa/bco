@@ -73,10 +73,10 @@ private:
                 std::cout << "Stop serve one client\n";
                 co_return;
             }
-            auto cdata = buffer.cdata();
-            std::cout << "Received: " << std::string((char*)cdata[0].data(), bytes_received);
+            const auto data = buffer.data();
+            std::cout << "Received: " << std::string((const char*)data[0].data(), bytes_received);
             int bytes_sent = co_await sock.send(buffer.subbuf(0, bytes_received));
-            std::cout << "Sent: " << std::string((char*)cdata[0].data(), bytes_sent);
+            std::cout << "Sent: " << std::string((const char*)data[0].data(), bytes_sent);
         }
     }
 

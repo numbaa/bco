@@ -4,7 +4,7 @@ namespace bco {
 
 int syscall_sendv(int s, bco::Buffer buff)
 {
-    auto slices = buff.cdata();
+    const auto slices = buff.data();
 #ifdef _WIN32
     std::vector<WSABUF> wsabuf(slices.size());
     for (size_t i = 0; i < wsabuf.size(); i++) {
@@ -55,7 +55,7 @@ int syscall_recvv(int s, bco::Buffer buff)
 
 int syscall_sendmsg(int s, bco::Buffer buff, const sockaddr_storage& addr)
 {
-    auto slices = buff.cdata();
+    const auto slices = buff.data();
 #ifdef _WIN32
     std::vector<WSABUF> wsabuf(slices.size());
     for (size_t i = 0; i < wsabuf.size(); i++) {
