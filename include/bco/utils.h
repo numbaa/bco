@@ -24,7 +24,39 @@ inline auto call_with_lock(Function&& func, Args&&... args) -> decltype(func(std
 }
 */
 
+template <typename T>
+inline void write_big_endian(uint8_t* buff, const T& value)
+{
+    for (size_t i = 0; i < sizeof(value); i++) {
+        buff[i] = value >> ((sizeof(value) - 1 - i) * 8);
+    }
+}
 
+template <typename T>
+inline void read_big_endian(const uint8_t* buff, T& value)
+{
+    value = 0;
+    for (size_t i = 0; i < sizeof(value); i++) {
+        value |= buff[i] << ((sizeof(value) - i - 1) * 8);
+    }
+}
+
+template <typename T>
+inline void write_little_endian(uint8_t* buff, const T& value)
+{
+    for (size_t i = 0; i < sizeof(value); i++) {
+        buff[i] = value >> (i * 8);
+    }
+}
+
+template <typename T>
+inline void read_little_endian(const uint8_t* buff, T& value)
+{
+    value = 0;
+    for (size_t i = 0; i < sizeof(value); i++) {
+        value |= buff[i] << (i * 8);
+    }
+}
 
 inline in_addr to_ipv4(const std::string& str)
 {

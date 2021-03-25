@@ -1,4 +1,5 @@
 #include <bco/buffer.h>
+#include <bco/utils.h>
 #include "magic.h"
 
 namespace bco {
@@ -167,6 +168,36 @@ std::vector<std::span<uint8_t>> BufferBase::data(size_t start, size_t end)
     return slices;
 }
 
+//以下几个函数由使用者保证正确调用，不再做越界判断
+
+template <typename T>
+inline bool BufferBase::read_big_endian_at(size_t index, T& value)
+{
+    read_big_endian(&operator[](index), value);
+    return true;
+}
+
+template <typename T>
+bool BufferBase::write_big_endian_at(size_t index, T value)
+{
+    write_big_endian(&operator[](index), value);
+    return true;
+}
+
+template <typename T>
+bool BufferBase::read_little_endian_at(size_t index, T& value)
+{
+    read_little_endian(&operator[](index), value);
+    return true;
+}
+
+template <typename T>
+bool BufferBase::write_little_endian_at(size_t index, T value)
+{
+    write_little_endian(&operator[](index), value);
+    return true;
+}
+
 } // namespace detail
 
 Buffer::Buffer()
@@ -276,25 +307,25 @@ const std::vector<std::span<uint8_t>> Buffer::data() const
 template <typename T>
 bool bco::Buffer::read_big_endian_at(size_t index, T& value)
 {
-    return false;
+    return base_->read_big_endian_at(index + start_, value);
 }
 
 template <typename T>
 bool bco::Buffer::write_big_endian_at(size_t index, T value)
 {
-    return false;
+    return base_->write_big_endian_at(index + start_, value);
 }
 
 template <typename T>
 bool bco::Buffer::read_little_endian_at(size_t index, T& value)
 {
-    return false;
+    return base_->read_little_endian_at(index + start_, value);
 }
 
 template <typename T>
 bool bco::Buffer::write_little_endian_at(size_t index, T value)
 {
-    return false;
+    return base_->write_little_endian_at(index + start_, value);
 }
 
 } // namespace bco
