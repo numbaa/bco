@@ -38,11 +38,4 @@ concept Proactor = requires(T t) {
     { t.harvest_completed_tasks() } -> std::same_as<std::vector<PriorityTask>>;
 };
 
-/*
-class ProactorInterface {
-public:
-    virtual std::vector<PriorityTask> harvest_completed_tasks() = 0;
-};
-*/
-
-}
+} // namespace bco

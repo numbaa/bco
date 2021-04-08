@@ -2,7 +2,14 @@ cmake_minimum_required(VERSION 3.12)
 
 project(bco)
 
+option(BCO_BUILD_WITH_TEST "Build bco with test" ON)
+option(BCO_BUILD_WITH_EXAMPLE "Build bco with example" ON)
+
 set(CMAKE_CXX_STANDARD 20)
+
+
+# macro WIN32_LEAN_AND_MEAN
+# gcc with windows, how ??
 
 if (MSVC)
     add_definitions(-DNOMINMAX)
@@ -77,4 +84,12 @@ target_include_directories(${PROJECT_NAME}
         "include"
 )
 
-add_subdirectory(examples)
+if(BCO_BUILD_WITH_EXAMPLE)
+    add_subdirectory(examples)
+endif()
+
+if(BCO_BUILD_WITH_TEST)
+    enable_testing()
+    add_subdirectory(tests)
+    add_test(NAME bco_test COMMAND test_all)
+endif()

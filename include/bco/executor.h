@@ -8,7 +8,7 @@ namespace bco {
 
 namespace detail {
 class ContextBase;
-}
+} // namespace detail
 
 class ExecutorInterface {
 public:
@@ -21,4 +21,4 @@ public:
     virtual void set_context(std::weak_ptr<detail::ContextBase> ctx) = 0;
 };
 
-}
+} // namespace bco

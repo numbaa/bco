@@ -10,16 +10,6 @@ namespace bco {
 namespace detail {
 
 class BufferBase {
-//public:
-    //class Iterator {
-    //public:
-    //    Iterator& operator++();
-    //    Iterator& operator--();
-    //    Iterator operator++(int);
-    //    Iterator operator--(int);
-    //    Iterator operator+(int distance);
-    //    Iterator operator-(int distance);
-    //};
 
 public:
     BufferBase() = default;
@@ -33,9 +23,7 @@ public:
     void insert(size_t index, std::vector<uint8_t>&& data);
     uint8_t& operator[](size_t index);
     std::vector<std::span<uint8_t>> data(size_t start, size_t end);
-    //const std::vector<std::span<uint8_t>> cdata() const;
-    //Iterator begin();
-    //Iterator end();
+
     template <typename T>
     bool read_big_endian_at(size_t index, T& value);
     
@@ -49,7 +37,6 @@ public:
     bool write_little_endian_at(size_t index, T value);
 
 private:
-    //friend class Iterator;
     std::list<std::vector<uint8_t>> buffer_;
 };
 

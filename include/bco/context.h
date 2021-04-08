@@ -6,8 +6,7 @@
 #include <bco/proactor.h>
 #include <bco/coroutine/task.h>
 
-namespace bco
-{
+namespace bco {
 
 namespace detail {
 
