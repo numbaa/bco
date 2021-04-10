@@ -2,6 +2,9 @@
 #include <memory>
 #include <functional>
 #include <algorithm>
+#include <set>
+#include <chrono>
+
 #include <bco/executor.h>
 #include <bco/proactor.h>
 #include <bco/coroutine/task.h>
@@ -10,7 +13,10 @@ namespace bco {
 
 namespace detail {
 
+//TODO: 增加更多管理routine的功能
 class ContextBase : public ::std::enable_shared_from_this<ContextBase> {
+    using TimePoint = std::chrono::steady_clock::time_point;
+    using Clock = std::chrono::steady_clock;
 public:
     ContextBase() = default;
     void start()
@@ -22,9 +28,28 @@ public:
     {
         return executor_.get();
     }
+    void add_routine(Routine routine)
+    {
+        std::lock_guard lock { mutex_ };
+        routines_.insert(RoutineInfo { routine, Clock::now() });
+    }
+    void del_routine(Routine routine)
+    {
+        std::lock_guard lock { mutex_ };
+        constexpr auto _time = TimePoint {};
+        routines_.erase(RoutineInfo { routine, _time });
+    }
 
 protected:
     std::unique_ptr<ExecutorInterface> executor_;
+
+private:
+    struct RoutineInfo {
+        Routine routine;
+        TimePoint start_time;
+    };
+    std::mutex mutex_;
+    std::set<RoutineInfo, std::less<Routine>> routines_;
 };
 
 }

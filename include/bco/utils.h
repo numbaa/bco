@@ -80,7 +80,7 @@ public:
         : size_(size)
     {
         if (size_ == 0)
-            throw std::logic_error { "'size' smaller than zero" };
+            throw std::logic_error { "WaitGroup: 'size' equal to zero" };
     }
     void done()
     {

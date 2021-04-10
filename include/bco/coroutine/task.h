@@ -33,39 +33,31 @@ class Routine : public std::suspend_never {
 public:
     class promise_type {
     public:
-        Routine get_return_object()
-        {
-            //coroutine_ = std::coroutine_handle<promise_type>::from_promise(*this);
-            auto ctx = get_current_context().lock();
-            if (ctx == nullptr) {
-                return Routine {};
-            } else {
-                auto routine = Routine {};
-                //TODO: ctx->add_routine(routine);
-                return routine;
-            }
-        }
+        Routine get_return_object();
         std::suspend_never initial_suspend()
         {
             return {};
         }
-        std::suspend_never final_suspend() noexcept
-        {
-            //TODO: 在此处告诉ContextBase我没了
-            // ctx->del_routine();
-            return {};
-        }
+        std::suspend_never final_suspend() noexcept;
         void unhandled_exception()
         {
         }
         void return_void()
         {
         }
-
     private:
-        //std::coroutine_handle<promise_type> coroutine_;
         std::weak_ptr<bco::detail::ContextBase> ctx_;
     };
+
+private:
+    friend class promise_type;
+    Routine(promise_type* promise)
+        : promise_(promise)
+    {
+    }
+
+private:
+    promise_type* promise_;
 };
 
 template <typename T = void>

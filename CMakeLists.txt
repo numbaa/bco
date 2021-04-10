@@ -66,7 +66,7 @@ add_library(${PROJECT_NAME} STATIC
     "src/buffer.cpp"
     "src/common.h"
     "src/common.cpp"
-    "src/utils.cpp" "src/magic.h")
+    "src/utils.cpp" "src/magic.h" "src/coroutine/task.cpp" "include/bco/executor/multithread_executor.h" "src/executor/multithread_executor.cpp")
 
  if(WIN32)
  target_link_libraries(${PROJECT_NAME}
