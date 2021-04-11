@@ -1,3 +1,6 @@
+#include <sys/socket.h>
+#include <sys/uio.h>
+
 #include "common.h"
 
 namespace bco {
@@ -23,7 +26,7 @@ int syscall_sendv(int s, bco::Buffer buff)
     for (size_t i = 0; i < iovecs.size(); i++) {
         iovecs[i] = ::iovec { slices[i].data(), slices[i].size() };
     }
-    return ::writev(task.fd, &iovecs, iovecs.size());
+    return ::writev(s, iovecs.data(), iovecs.size());
 #endif // _WIN32
 }
 
@@ -49,7 +52,7 @@ int syscall_recvv(int s, bco::Buffer buff)
     for (size_t i = 0; i < iovecs.size(); i++) {
         iovecs[i] = ::iovec { slices[i].data(), slices[i].size() };
     }
-    return ::readv(task.fd, &iovecs, iovecs.size());
+    return ::readv(s, iovecs.data(), iovecs.size());
 #endif // _WIN32
 }
 

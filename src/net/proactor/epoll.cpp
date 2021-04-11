@@ -268,7 +268,7 @@ void Epoll::on_io_event(const epoll_event& event)
 void Epoll::do_send(EpollTask& task)
 {
     auto& ioitem = task.write.value();
-    int bytes = syscall_sendv(ioitem.fd, ioitem.buff);
+    int bytes = syscall_sendv(task.event.data.fd, ioitem.buff);
     if (bytes >= 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
         std::lock_guard lock { mtx_ };
         uint32_t epollout = EPOLLOUT;

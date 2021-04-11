@@ -1,4 +1,5 @@
 #pragma once
+#ifdef _WIN32
 #include <WinSock2.h>
 #include <Windows.h>
 #include <functional>
@@ -70,6 +71,8 @@ private:
     ::HANDLE complete_port_;
 };
 
-}
+} // namespace net
 
-}
+} // namespace bco
+
+#endif // ifdef _WIN32

@@ -1,4 +1,5 @@
 #pragma once
+#ifdef __linux__
 #include <netinet/in.h>
 #include <sys/epoll.h>
 
@@ -138,3 +139,5 @@ inline Epoll::Action& operator&=(Epoll::Action& lhs, const Epoll::Action& rhs)
 } // namespace net
 
 } // namespace bco
+
+#endif // ifdef __linux__

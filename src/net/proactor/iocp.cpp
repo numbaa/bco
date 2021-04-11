@@ -1,18 +1,19 @@
-#include <WinSock2.h>
+#ifdef _WIN32
 #include <MSWSock.h>
+#include <WinSock2.h>
 
 #include <cassert>
 #include <cstdint>
 
-#include <chrono>
-#include <vector>
 #include <array>
+#include <chrono>
 #include <functional>
 #include <thread>
+#include <vector>
 
-#include <bco/net/proactor/iocp.h>
-#include <bco/executor.h>
 #include "../../common.h"
+#include <bco/executor.h>
+#include <bco/net/proactor/iocp.h>
 
 namespace bco {
 
@@ -243,7 +244,6 @@ int IOCP::connect(int s, const sockaddr_storage& addr)
     return ::connect(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
 }
 
-
 std::vector<PriorityTask> net::IOCP::harvest_completed_tasks()
 {
     std::lock_guard lock { mtx_ };
@@ -334,6 +334,8 @@ DWORD IOCP::next_timeout()
     return 10;
 }
 
-}
+} // namespace net
 
-}
+} // namespace bco
+
+#endif // ifdef _WIN32
