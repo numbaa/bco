@@ -120,8 +120,105 @@ int IOUring::listen(int s, int backlog)
 
 int IOUring::recv(int s, bco::Buffer buff, std::function<void(int)> cb)
 {
-    //TODO: 扔到pending tasks里
-    const auto slices = buff.data();
+    std::lock_guard lock { mutex_ };
+    pending_tasks_.push(UringTask { s, Action::Recv, buff, cb });
+}
+
+int IOUring::recvfrom(int s, bco::Buffer buff, std::function<void(int, const sockaddr_storage&)> cb)
+{
+    std::lock_guard lock { mutex_ };
+    pending_tasks_.push(UringTask { s, Action::Recvfrom, buff, cb });
+}
+
+int IOUring::send(int s, bco::Buffer buff, std::function<void(int)> cb)
+{
+    std::lock_guard lock { mutex_ };
+    pending_tasks_.push(UringTask { s, Action::Send, buff, cb });
+}
+
+//需不需要加入iouring??
+int IOUring::send(int s, bco::Buffer buff)
+{
+    int bytes = syscall_sendv(s, buff);
+    if (bytes == -1)
+        return -last_error();
+    else
+        return bytes;
+}
+
+//需不需要加入iouring??
+int IOUring::sendto(int s, bco::Buffer buff, const sockaddr_storage& addr)
+{
+    int bytes = syscall_sendmsg(s, buff, addr);
+    if (bytes == -1)
+        return -last_error();
+    else
+        return bytes;
+}
+
+int IOUring::accept(int s, std::function<void(int)> cb)
+{
+    std::lock_guard lock { mutex_ };
+    pending_tasks_.push(UringTask { s, Action::Accept, bco::Buffer {}, cb });
+}
+
+int IOUring::connect(int s, const sockaddr_storage& addr, std::function<void(int)> cb)
+{
+    int error = ::connect(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
+    if (error == -1)
+        return -last_error();
+    std::lock_guard lock { mutex_ };
+    pending_tasks_.push(UringTask { s, Action::Connect, bco::Buffer {}, cb });
+}
+
+int IOUring::connect(int s, const sockaddr_storage& addr)
+{
+    int error = ::connect(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
+    if (error == -1)
+        return -last_error();
+    else
+        return 0;
+}
+
+std::vector<PriorityTask> IOUring::harvest_completed_tasks()
+{
+}
+
+void IOUring::do_io()
+{
+    assert(executor_->is_current_executor());
+
+    auto pending_tasks = get_pending_tasks();
+    submit_tasks(pending_tasks);
+    handle_complete_task();
+    using namespace std::chrono_literals;
+    executor_->post_delay(1ms, bco::PriorityTask { .priority = 1, .task = std::bind(&IOUring::do_io, this) });
+}
+
+std::queue<IOUring::UringTask> IOUring::get_pending_tasks()
+{
+    std::lock_guard lock { mutex_ };
+    return std::move(pending_tasks_);
+}
+
+void IOUring::submit_tasks(std::queue<IOUring::UringTask>& tasks)
+{
+    size_t ops = 0;
+    while (!tasks.empty() && true /*empty sqe*/) {
+        auto& task = tasks.front();
+        submit_one_task(task);
+        tasks.pop();
+        ops++;
+    }
+    int ret = _io_uring_enter(fd_, ops, 0, 0);
+    if (ret < 0) {
+        // TODO: error handling;
+    }
+}
+
+void IOUring::submit_one_task(const IOUring::UringTask& task)
+{
+    const auto slices = task.buff.data();
     std::vector<::iovec> iovecs(slices.size());
     for (size_t i = 0; i < iovecs.size(); i++) {
         iovecs[i] = ::iovec { slices[i].data(), slices[i].size() };
@@ -132,9 +229,9 @@ int IOUring::recv(int s, bco::Buffer buff, std::function<void(int)> cb)
     std::atomic_thread_fence(std::memory_order::release);
     unsigned index = tail & *sq_ring_.ring_mask;
     ::io_uring_sqe* sqe = sqes_ + index;
-    sqe->fd = s;
+    sqe->fd = task.fd;
     sqe->flags = 0;
-    sqe->opcode = IORING_OP_RECVMSG;
+    sqe->opcode = action_to_opcode(task.action);
     sqe->addr = reinterpret_cast<decltype(sqe->addr)>(iovecs.data());
     sqe->len = iovecs.size();
     sqe->off = 0;
@@ -145,50 +242,32 @@ int IOUring::recv(int s, bco::Buffer buff, std::function<void(int)> cb)
         *sq_ring_.tail = tail;
         std::atomic_thread_fence(std::memory_order::acquire);
     }
-    int ret = _io_uring_enter(fd_, 1, 0, 0);
-    if (ret < 0) {
-        return ret;
+}
+
+void IOUring::handle_complete_task()
+{
+    unsigned head = *cq_ring_.head;
+    do {
+        std::atomic_thread_fence(std::memory_order::release);
+        if (head == *cq_ring_.tail) {
+            break;
+        }
+        auto cqe = &cq_ring_.cqes[head & *cq_ring_.ring_mask];
+        // TODO: 从user_data中获得上下文信息
+    } while (true);
+}
+
+uint8_t IOUring::action_to_opcode(IOUring::Action action)
+{
+    //似乎不支持accept之流
+    switch (action) {
+    case Action::Recv:
+    case Action::Recvfrom:
+        return IORING_OP_RECVMSG;
+    case Action::Send:
+    default:
+        return IORING_OP_NOP;
     }
-}
-
-int IOUring::recvfrom(int s, bco::Buffer buff, std::function<void(int, const sockaddr_storage&)> cb)
-{
-}
-
-int IOUring::send(int s, bco::Buffer buff, std::function<void(int)> cb)
-{
-    //跟IOCP一样，不管是不是当前线程，都得先进队列
-    //如果先尝试同步non-blocking发送，会多一次系统调用
-}
-
-int IOUring::send(int s, bco::Buffer buff)
-{
-}
-
-int IOUring::sendto(int s, bco::Buffer buff, const sockaddr_storage& addr)
-{
-}
-
-int IOUring::accept(int s, std::function<void(int)> cb)
-{
-}
-
-int IOUring::connect(int s, const sockaddr_storage& addr, std::function<void(int)> cb)
-{
-}
-
-int IOUring::connect(int s, const sockaddr_storage& addr)
-{
-}
-
-std::vector<PriorityTask> IOUring::harvest_completed_tasks()
-{
-}
-
-void IOUring::do_io()
-{
-    assert(executor_->is_current_executor());
-    //
 }
 
 int IOUring::_io_uring_setup(unsigned entries, struct io_uring_params* p)

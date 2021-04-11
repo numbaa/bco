@@ -6,7 +6,9 @@
 #include <chrono>
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <optional>
+#include <queue>
 
 #include <bco/buffer.h>
 #include <bco/executor.h>
@@ -61,6 +63,23 @@ private:
         unsigned* ring_entries;
         ::io_uring_cqe* cqes;
     };
+    enum class Action : uint32_t {
+        Recv,
+        Send,
+        Recvfrom,
+        Accept,
+        Connect,
+    };
+    struct UringTask {
+        int fd;
+        Action action;
+        bco::Buffer buff;
+        std::function<void(int)> cb;
+        std::function<void(int, const sockaddr_storage&)> cb2;
+        UringTask() = default;
+        UringTask(int _fd, Action _action, bco::Buffer _buff, std::function<void(int)> _cb);
+        UringTask(int _fd, Action _action, bco::Buffer _buff, std::function<void(int, const sockaddr_storage&)> _cb);
+    };
 
 public:
     IOUring(const Params& params);
@@ -91,6 +110,11 @@ public:
 
 private:
     void do_io();
+    std::queue<UringTask> get_pending_tasks();
+    void submit_tasks(std::queue<UringTask>& tasks);
+    void submit_one_task(const UringTask& task);
+    void handle_complete_task();
+    uint8_t action_to_opcode(Action action);
     void setup_io_uring(const Params& params);
     int _io_uring_setup(unsigned entries, struct io_uring_params* p);
     int _io_uring_enter(int ring_fd, unsigned int to_submit, unsigned int min_complete, unsigned int flags);
@@ -98,6 +122,8 @@ private:
 private:
     int fd_;
     ExecutorInterface* executor_;
+    std::queue<UringTask> pending_tasks_;
+    std::mutex mutex_;
     size_t sq_entries_ {};
     ::io_uring_sqe* sqes_ { nullptr };
     SqRing sq_ring_ {};
