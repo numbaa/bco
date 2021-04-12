@@ -4,21 +4,20 @@
 #include <Windows.h>
 #include <functional>
 #include <memory>
-#include <vector>
+#include <mutex>
 #include <span>
 #include <thread>
-#include <mutex>
+#include <vector>
 
-#include <bco/proactor.h>
-#include <bco/net/address.h>
 #include <bco/buffer.h>
-
+#include <bco/net/address.h>
+#include <bco/proactor.h>
 
 namespace bco {
 
 namespace net {
 
-class IOCP  {
+class IOCP {
 public:
     class GetterSetter {
     public:
@@ -32,6 +31,7 @@ public:
     private:
         std::unique_ptr<IOCP> iocp_;
     };
+
 public:
     IOCP();
     ~IOCP();
@@ -52,7 +52,7 @@ public:
 
     int sendto(int s, bco::Buffer buff, const sockaddr_storage& addr);
 
-    int accept(int listen_fd, std::function<void(int s)> cb);
+    int accept(int listen_fd, std::function<void(int, const sockaddr_storage&)> cb);
 
     int connect(int s, const sockaddr_storage& addr, std::function<void(int)> cb);
     int connect(int s, const sockaddr_storage& addr);

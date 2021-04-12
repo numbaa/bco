@@ -61,12 +61,15 @@ add_library(${PROJECT_NAME} STATIC
     "src/net/address.cpp"
     "src/coroutine/cofunc.cpp"
     "include/bco/coroutine/channel.h"
-    "src/trick.cpp"
     "include/bco/buffer.h"
     "src/buffer.cpp"
     "src/common.h"
     "src/common.cpp"
-    "src/utils.cpp" "src/magic.h" "src/coroutine/task.cpp" "include/bco/executor/multithread_executor.h" "src/executor/multithread_executor.cpp")
+    "src/utils.cpp"
+    "src/magic.h"
+    "src/coroutine/task.cpp"
+    "include/bco/executor/multithread_executor.h"
+    "src/executor/multithread_executor.cpp")
 
  if(WIN32)
  target_link_libraries(${PROJECT_NAME}

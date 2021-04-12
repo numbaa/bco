@@ -2,9 +2,8 @@
 
 #include <thread>
 
-#include <bco/net/proactor/select.h>
 #include "../../common.h"
-
+#include <bco/net/proactor/select.h>
 
 namespace bco {
 
@@ -60,8 +59,7 @@ void Select::start(ExecutorInterface* executor)
     io_executor_ = executor;
     io_executor_->post(bco::PriorityTask {
         .priority = 1,
-        .task = std::bind(&Select::do_io, this)
-    });
+        .task = std::bind(&Select::do_io, this) });
 }
 
 void Select::stop()
@@ -160,7 +158,7 @@ int Select::connect(int s, const sockaddr_storage& addr)
         return 0;
 }
 
-int Select::accept(int s, std::function<void(int s)> cb)
+int Select::accept(int s, std::function<void(int, const sockaddr_storage&)> cb)
 {
     std::lock_guard lock { mtx_ };
     if (s > max_rfd_)
@@ -231,20 +229,19 @@ void Select::do_io()
         on_io_event(writing_fds, wfds);
     }
     using namespace std::chrono_literals;
-    io_executor_->post_delay(1ms, bco::PriorityTask {
-        .priority = 4,
-        .task = std::bind(&Select::do_io, this)
-    });
+    io_executor_->post_delay(1ms, bco::PriorityTask { .priority = 4, .task = std::bind(&Select::do_io, this) });
 }
 
 void Select::do_accept(const SelectTask& task)
 {
-    auto fd = ::accept(task.fd, nullptr, 0);
+    sockaddr_storage addr {};
+    socklen_t len = sizeof(addr);
+    auto fd = ::accept(task.fd, reinterpret_cast<sockaddr*>(&addr), &len);
     if (fd >= 0 || (last_error() != EAGAIN && last_error() != EWOULDBLOCK)) {
         set_non_block(static_cast<int>(fd));
         std::lock_guard lock { mtx_ };
         pending_rfds_.erase(task.fd);
-        completed_task_.push_back(PriorityTask { 0, std::bind(task.cb, static_cast<int>(fd)) });
+        completed_task_.push_back(PriorityTask { 0, std::bind(task.cb2, static_cast<int>(fd), addr) });
         return;
     }
     //do nothing, it will try again

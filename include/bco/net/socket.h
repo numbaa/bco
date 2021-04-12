@@ -8,20 +8,19 @@
 #include <concepts>
 #include <cstdint>
 
-#include <bco/proactor.h>
-#include <bco/net/address.h>
 #include <bco/buffer.h>
+#include <bco/net/address.h>
+#include <bco/proactor.h>
 
 namespace bco {
 
 namespace net {
 
 template <typename T>
-concept SocketProactor = bco::Proactor<T>
-    && requires(T p, int fd, int domain, int type, uint32_t timeout_ms,
-        const sockaddr_storage& addr, bco::Buffer buff,
-        std::function<void(int)> cb, int backlog,
-        std::function<void(int, const sockaddr_storage&)> cb2)
+concept SocketProactor = bco::Proactor<T>&& requires(T p, int fd, int domain, int type, uint32_t timeout_ms,
+    const sockaddr_storage& addr, bco::Buffer buff,
+    std::function<void(int)> cb, int backlog,
+    std::function<void(int, const sockaddr_storage&)> cb2)
 {
     {
         p.recv(fd, buff, cb)
@@ -49,7 +48,7 @@ concept SocketProactor = bco::Proactor<T>
     ->std::same_as<int>;
 
     {
-        p.accept(fd, cb)
+        p.accept(fd, cb2)
     }
     ->std::same_as<int>;
 

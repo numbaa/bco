@@ -13,11 +13,11 @@
 #include <thread>
 #include <vector>
 
-#include <bco/net/event.h>
-#include <bco/net/address.h>
-#include <bco/proactor.h>
-#include <bco/executor.h>
 #include <bco/buffer.h>
+#include <bco/executor.h>
+#include <bco/net/address.h>
+#include <bco/net/event.h>
+#include <bco/proactor.h>
 
 namespace bco {
 
@@ -76,7 +76,7 @@ public:
 
     int sendto(int s, bco::Buffer buff, const sockaddr_storage& addr);
 
-    int accept(int s, std::function<void(int)> cb);
+    int accept(int s, std::function<void(int, const sockaddr_storage&)> cb);
 
     int connect(int s, const sockaddr_storage& addr, std::function<void(int)> cb);
     int connect(int s, const sockaddr_storage& addr);

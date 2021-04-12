@@ -1,22 +1,23 @@
 #pragma once
-#include <memory>
-#include <functional>
 #include <algorithm>
-#include <set>
 #include <chrono>
+#include <functional>
+#include <memory>
+#include <set>
 
+#include <bco/coroutine/task.h>
 #include <bco/executor.h>
 #include <bco/proactor.h>
-#include <bco/coroutine/task.h>
 
 namespace bco {
 
 namespace detail {
 
-//TODO: Ôö¼Ó¸ü¶à¹ÜÀíroutineµÄ¹¦ÄÜ
+//TODO: å¢åŠ æ›´å¤šç®¡ç†routineçš„åŠŸèƒ½
 class ContextBase : public ::std::enable_shared_from_this<ContextBase> {
     using TimePoint = std::chrono::steady_clock::time_point;
     using Clock = std::chrono::steady_clock;
+
 public:
     ContextBase() = default;
     void start()
@@ -39,6 +40,11 @@ public:
         constexpr auto _time = TimePoint {};
         routines_.erase(RoutineInfo { routine, _time });
     }
+    size_t routines_size() const
+    {
+        std::lock_guard { mutex_ };
+        return routines_.size();
+    }
 
 protected:
     std::unique_ptr<ExecutorInterface> executor_;
@@ -52,13 +58,13 @@ private:
     std::set<RoutineInfo, std::less<Routine>> routines_;
 };
 
-}
+} // namespace detail
 
-template <typename...Types>
+template <typename... Types>
 class Context;
 
-template <typename T, typename...Types> requires Proactor<T>
-class Context<T, Types...> : public T::GetterSetter, public Context<Types...> {
+template <typename T, typename... Types>
+requires Proactor<T> class Context<T, Types...> : public T::GetterSetter, public Context<Types...> {
 public:
     std::vector<PriorityTask> get_proactor_tasks()
     {
@@ -68,9 +74,8 @@ public:
     }
 };
 
-
-template <typename T> requires Proactor<T>
-class Context<T> : public T::GetterSetter, public detail::ContextBase {
+template <typename T>
+requires Proactor<T> class Context<T> : public T::GetterSetter, public detail::ContextBase {
 public:
     Context() = default;
     Context(std::unique_ptr<ExecutorInterface>&& executor)
@@ -97,7 +102,6 @@ private:
     {
         coroutine();
     }
-
 };
 
 } // namespace bco

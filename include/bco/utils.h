@@ -1,17 +1,20 @@
 #pragma once
+
 #ifdef _WIN32
-#include <WinSock2.h>
-#include <WS2tcpip.h>
 #include <MSWSock.h>
+#include <WS2tcpip.h>
+#include <WinSock2.h>
 #else
+#include <arpa/inet.h>
 #include <fcntl.h>
 #endif
-#include <thread>
+
+#include <condition_variable>
 #include <mutex>
+#include <thread>
 
 #include <bco/buffer.h>
 #include <bco/executor.h>
-
 
 namespace bco {
 
@@ -71,8 +74,6 @@ inline in6_addr to_ipv6(const std::string& str)
     inet_pton(AF_INET6, str.c_str(), &addr);
     return addr;
 }
-
-
 
 class WaitGroup {
 public:

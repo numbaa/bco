@@ -5,9 +5,9 @@
 
 #include <array>
 
+#include "../../common.h"
 #include <bco/exception.h>
 #include <bco/net/proactor/epoll.h>
-#include "../../common.h"
 
 namespace bco {
 
@@ -66,26 +66,45 @@ void Epoll::stop()
     ::write(exit_fd_, &buff, sizeof(buff));
 }
 
-int Epoll::recv(int s,bco::Buffer buff, std::function<void(int)> cb)
+int Epoll::recv(int s, bco::Buffer buff, std::function<void(int)> cb)
 {
     std::lock_guard lock { mtx_ };
     auto it = pending_tasks_.find(s);
     if (it != pending_tasks_.cend()) {
         it->second.event.events |= EPOLLIN;
         it->second.action |= Action::Recv;
-        it->second.write.emplace(buff, cb);
+        it->second.read.emplace(buff, cb, nullptr);
     } else {
         EpollTask task {};
         task.event.data.fd = s;
         task.event.events = EPOLLIN; //level trigger
         task.action |= Action::Recv;
-        task.read.emplace(buff, cb);
+        task.read.emplace(buff, cb, nullptr);
         pending_tasks_[s] = task;
     }
     return 0;
 }
 
-int Epoll::send(int s,bco::Buffer buff, std::function<void(int)> cb)
+int Epoll::recvfrom(int s, bco::Buffer buff, std::function<void(int, const sockaddr_storage&)> cb)
+{
+    std::lock_guard lock { mtx_ };
+    auto it = pending_tasks_.find(s);
+    if (it != pending_tasks_.cend()) {
+        it->second.event.events |= EPOLLIN;
+        it->second.action |= Action::Recvfrom;
+        it->second.read.emplace(buff, nullptr, cb);
+    } else {
+        EpollTask task {};
+        task.event.data.fd = s;
+        task.event.events = EPOLLIN; //level trigger
+        task.action |= Action::Recvfrom;
+        task.read.emplace(buff, nullptr, cb);
+        pending_tasks_[s] = task;
+    }
+    return 0;
+}
+
+int Epoll::send(int s, bco::Buffer buff, std::function<void(int)> cb)
 {
     if (io_executor_->is_current_executor()) {
         return send_sync(s, buff, cb);
@@ -94,14 +113,14 @@ int Epoll::send(int s,bco::Buffer buff, std::function<void(int)> cb)
     }
 }
 
-int Epoll::accept(int s, std::function<void(int)> cb)
+int Epoll::accept(int s, std::function<void(int, const sockaddr_storage&)> cb)
 {
     EpollTask task {};
     task.event.data.fd = s;
     task.event.events = EPOLLIN; //level trigger
     task.action |= Action::Accept;
-    task.read.emplace(std::span<std::byte> {}, cb);
-    std::lock_guard lock {mtx_};
+    task.read.emplace(std::span<std::byte> {}, nullptr, cb);
+    std::lock_guard lock { mtx_ };
     pending_tasks_[s] = task;
     return 0;
 }
@@ -115,8 +134,8 @@ int Epoll::connect(int s, const sockaddr_storage& addr, std::function<void(int)>
     task.event.data.fd = s;
     task.event.events = EPOLLOUT; //level triger
     task.action |= Action::Connect;
-    task.write.emplace(std::span<std::byte> {}, cb);
-    std::lock_guard lock {mtx_};
+    task.write.emplace(std::span<std::byte> {}, cb, nullptr);
+    std::lock_guard lock { mtx_ };
     pending_tasks_[s] = task;
     return 0;
 }
@@ -145,6 +164,10 @@ void Epoll::submit_tasks(std::map<int, Epoll::EpollTask>& pending_tasks)
         if (it != flying_tasks_.cend()) {
             if ((task.second.action & Action::Recv) != Action::None) {
                 it->second.action |= Action::Recv;
+                it->second.event.events |= EPOLLIN;
+                it->second.read = task.second.read;
+            } else if ((task.second.action & Action::Recvfrom) != Action::None) {
+                it->second.action |= Action::Recvfrom;
                 it->second.event.events |= EPOLLIN;
                 it->second.read = task.second.read;
             }
@@ -196,9 +219,7 @@ void Epoll::do_io()
         on_io_event(events[i]);
     }
     using namespace std::chrono_literals;
-    io_executor_->post_delay(1ms, bco::PriorityTask{
-        .priority = 4,
-        .task = std::bind(&Epoll::do_io, this) });
+    io_executor_->post_delay(1ms, bco::PriorityTask { .priority = 4, .task = std::bind(&Epoll::do_io, this) });
 }
 
 int Epoll::send_sync(int s, bco::Buffer buff, std::function<void(int)> cb)
@@ -212,21 +233,20 @@ int Epoll::send_sync(int s, bco::Buffer buff, std::function<void(int)> cb)
         return -last_error();
 }
 
-int Epoll::send_async(int s,bco::Buffer buff, std::function<void(int)> cb)
+int Epoll::send_async(int s, bco::Buffer buff, std::function<void(int)> cb)
 {
-    std::lock_guard lock{ mtx_ };
+    std::lock_guard lock { mtx_ };
     auto it = pending_tasks_.find(s);
     if (it != pending_tasks_.cend()) {
         it->second.event.events |= EPOLLOUT;
         it->second.action |= Action::Send;
-        it->second.write.emplace(buff, cb);
-    }
-    else {
-        EpollTask task{};
+        it->second.write.emplace(buff, cb, nullptr);
+    } else {
+        EpollTask task {};
         task.event.data.fd = s;
         task.event.events = EPOLLOUT; //level triger
         task.action |= Action::Send;
-        task.write.emplace(buff, cb);
+        task.write.emplace(buff, cb, nullptr);
         pending_tasks_[s] = task;
     }
     return 0;
@@ -286,7 +306,9 @@ void Epoll::do_send(EpollTask& task)
 void Epoll::do_accept(EpollTask& task)
 {
     auto& ioitem = task.read.value();
-    int fd = ::accept(task.event.data.fd, nullptr, 0);
+    sockaddr_storage addr {};
+    socklen_t len = sizeof(addr);
+    int fd = ::accept(task.event.data.fd, reinterpret_cast<sockaddr*>(&addr), &len);
     if (fd >= 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
         set_non_block(fd);
         std::lock_guard lock { mtx_ };

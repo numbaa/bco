@@ -42,6 +42,7 @@ struct OverlapInfo {
 
 struct AcceptOverlapInfo : OverlapInfo {
     std::array<uint8_t, kAcceptBuffLen> buff;
+    std::function<void(int, const sockaddr_storage&)> cb2;
 };
 
 struct RecvfromOverlapInfo : OverlapInfo {
@@ -178,11 +179,11 @@ int IOCP::sendto(int s, bco::Buffer buff, const sockaddr_storage& addr)
         return bytes;
 }
 
-int IOCP::accept(int s, std::function<void(int s)> cb)
+int IOCP::accept(int s, std::function<void(int, const sockaddr_storage&)> cb)
 {
     AcceptOverlapInfo* overlap_info = new AcceptOverlapInfo;
     overlap_info->action = OverlapAction::Accept;
-    overlap_info->cb = std::move(cb);
+    overlap_info->cb2 = std::move(cb);
     overlap_info->sock = static_cast<int>(::socket(AF_INET, SOCK_STREAM, 0));
     if (overlap_info->sock == INVALID_SOCKET) {
         delete overlap_info;
