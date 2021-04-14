@@ -20,6 +20,10 @@ class ContextBase : public ::std::enable_shared_from_this<ContextBase> {
 
 public:
     ContextBase() = default;
+    ContextBase(std::unique_ptr<ExecutorInterface>&& executor)
+        : executor_{ std::move(executor) }
+    {
+    }
     void start()
     {
         executor_->set_context(weak_from_this());
@@ -28,6 +32,10 @@ public:
     ExecutorInterface* executor()
     {
         return executor_.get();
+    }
+    void spawn(std::function<Routine()>&& coroutine)
+    {
+        executor_->post(PriorityTask { 0, std::bind(&ContextBase::spawn_aux, this, coroutine) });
     }
     void add_routine(Routine routine)
     {
@@ -44,6 +52,12 @@ public:
     {
         std::lock_guard { mutex_ };
         return routines_.size();
+    }
+
+private:
+    void spawn_aux(std::function<Routine()> coroutine)
+    {
+        coroutine();
     }
 
 protected:
@@ -79,13 +93,9 @@ requires Proactor<T> class Context<T> : public T::GetterSetter, public detail::C
 public:
     Context() = default;
     Context(std::unique_ptr<ExecutorInterface>&& executor)
-        : executor_(std::move(executor))
+        : ContextBase { std::move(executor) }
     {
         executor_->set_proactor_task_getter(std::bind(&Context::get_proactor_tasks, this));
-    }
-    void spawn(std::function<Routine()>&& coroutine)
-    {
-        executor_->post(PriorityTask { 0, std::bind(&Context::spawn_aux, this, coroutine) });
     }
     void set_executor(std::unique_ptr<ExecutorInterface>&& executor)
     {
@@ -95,12 +105,6 @@ public:
     std::vector<PriorityTask> get_proactor_tasks()
     {
         return T::GetterSetter::proactor()->harvest_completed_tasks();
-    }
-
-private:
-    void spawn_aux(std::function<Routine()> coroutine)
-    {
-        coroutine();
     }
 };
 

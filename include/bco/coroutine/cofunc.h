@@ -2,8 +2,10 @@
 #include <chrono>
 #include <functional>
 #include <any>
+#include <optional>
 #include <type_traits>
-//#include <concepts>
+#include <atomic>
+#include <memory>
 
 #include "task.h"
 #include "bco/executor.h"
@@ -22,11 +24,22 @@ private:
 
 class DelayTask : public Task<> {
 public:
-    DelayTask(ExecutorInterface* executor, std::chrono::microseconds duration);
+    DelayTask(std::chrono::microseconds duration);
     void await_suspend(std::coroutine_handle<> coroutine) noexcept;
 private:
-    ExecutorInterface* executor_;
     std::chrono::microseconds duration_;
+};
+
+template <typename T>
+class ExpirableTask : public Task<std::optional<T>> {
+public:
+    ExpirableTask(std::chrono::microseconds duration, Task<T> task);
+    void await_suspend(std::coroutine_handle<> coroutine) noexcept;
+
+private:
+    std::chrono::microseconds duration_;
+    Task<T> task_;
+    std::shared_ptr<std::atomic<bool>> done_;
 };
 
 template <typename Callable>
@@ -61,7 +74,28 @@ private:
     Callable func_;
 };
 
-}
+} // namespace detail
+
+class Timeout {
+public:
+    template <typename Rep, typename Period>
+    explicit Timeout(std::chrono::duration<Rep, Period> duration)
+        : Timeout { std::chrono::duration_cast<std::chrono::milliseconds>(duration) }
+    {
+    }
+    template <>
+    explicit Timeout(std::chrono::milliseconds duration)
+        : duration_ { duration }
+    {
+    }
+    const std::chrono::milliseconds duration() const
+    {
+        return duration_;
+    }
+
+private:
+    std::chrono::milliseconds duration_;
+};
 
 template <typename Rep, typename Period>
 [[nodiscard]] detail::DelayTask sleep_for(std::chrono::duration<Rep, Period> duration)
@@ -80,4 +114,12 @@ template <typename Callable>
     return detail::ExecutorTask { get_current_executor(), executor, func };
 }
 
+template <typename T>
+[[nodiscard]] detail::ExpirableTask<std::optional<T>> run_with(Timeout timeout, Task<T> task)
+{
+    return detail::ExpirableTask { timeout.duration(), task };
 }
+
+//TODO: Ö§³Ö run_with(timeout, ANY_CALLABLE)
+
+} // namespace bco
