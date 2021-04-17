@@ -133,7 +133,7 @@ template <typename Callable>
 }
 
 template <typename T>
-[[nodiscard]] detail::ExpirableTask<std::optional<T>> run_with(Timeout timeout, Task<T> task)
+[[nodiscard]] detail::ExpirableTask<T> run_with(Timeout timeout, Task<T> task)
 {
     return detail::ExpirableTask { timeout.duration(), task };
 }

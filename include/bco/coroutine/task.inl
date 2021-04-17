@@ -4,11 +4,7 @@ namespace bco {
 
 namespace detail {
 
-template <template <typename> typename _TaskT, typename T>
-class PromiseType;
-
-template <template <typename> typename _TaskT>
-class PromiseType<_TaskT, void> {
+class PromiseTypeBase {
     struct FinalAwaitable {
         bool await_ready() noexcept { return false; }
         //co_await await_suspend()是在当前coroutine执行，传进去的也是当前coroutine_handle
@@ -24,12 +20,7 @@ class PromiseType<_TaskT, void> {
     };
 
 public:
-    //构造函数不能有参数、必须public
-    PromiseType() = default;
-    _TaskT<void> get_return_object()
-    {
-        return _TaskT<void> { std::coroutine_handle<PromiseType>::from_promise(*this) };
-    }
+    PromiseTypeBase() = default;
     //执行到coroutine的左大括号，就会执行co_await initial_suspend()
     //这里让它立即挂起，该coroutine的caller会执行co_await return_object
     //以便在coroutine开始执行前获取到外部的coroutine_handle
@@ -52,15 +43,30 @@ public:
     {
         caller_coroutine_ = caller;
     }
-    void return_void() { }
-    void result() { }
 
 private:
     std::coroutine_handle<> caller_coroutine_;
 };
 
 template <template <typename> typename _TaskT, typename T>
-class PromiseType : PromiseType<_TaskT, void> {
+class PromiseType;
+
+template <template <typename> typename _TaskT>
+class PromiseType<_TaskT, void> : public PromiseTypeBase {
+
+public:
+    //构造函数不能有参数、必须public
+    PromiseType() = default;
+    _TaskT<void> get_return_object()
+    {
+        return _TaskT<void> { std::coroutine_handle<PromiseType>::from_promise(*this) };
+    }
+    void return_void() { }
+    void result() { }
+};
+
+template <template <typename> typename _TaskT, typename T>
+class PromiseType : public PromiseTypeBase {
 public:
     _TaskT<T> get_return_object()
     {
