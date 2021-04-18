@@ -17,7 +17,7 @@ Routine Routine::promise_type::get_return_object()
     }
 }
 
-std::suspend_never Routine::promise_type::final_suspend()
+std::suspend_never Routine::promise_type::final_suspend() noexcept
 {
     if (auto ctx = ctx_.lock()) {
         ctx->del_routine(Routine { this });

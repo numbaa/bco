@@ -42,16 +42,6 @@ int Epoll::create(int domain, int type)
     return static_cast<int>(fd);
 }
 
-int Epoll::bind(int s, const sockaddr_storage& addr)
-{
-    return ::bind(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
-}
-
-int Epoll::listen(int s, int backlog)
-{
-    return ::listen(s, backlog);
-}
-
 void Epoll::start(ExecutorInterface* executor)
 {
     io_executor_ = executor;

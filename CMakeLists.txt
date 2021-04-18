@@ -12,7 +12,7 @@ set(CMAKE_CXX_STANDARD 20)
 # gcc with windows, how ??
 
 if (MSVC)
-    add_definitions(-DNOMINMAX)
+    add_definitions(-DNOMINMAX -DWIN32_LEAN_AND_MEAN)
     add_compile_options(/W4 /WX)
 else()
     add_compile_options(-fcoroutines)
@@ -38,7 +38,6 @@ add_library(${PROJECT_NAME} STATIC
     "include/bco.h"
     "include/bco/context.h"
     "include/bco/executor.h"
-    
     "include/bco/utils.h"
 
     "include/bco/coroutine/task.inl"
@@ -66,7 +65,7 @@ add_library(${PROJECT_NAME} STATIC
     "src/common.h"
     "src/common.cpp"
     "src/utils.cpp"
-    "src/magic.h"
+    
     "src/coroutine/task.cpp"
     "include/bco/executor/multithread_executor.h"
     "src/executor/multithread_executor.cpp")

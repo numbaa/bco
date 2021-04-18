@@ -57,13 +57,13 @@ detail::ExpirableTask<T>::ExpirableTask(std::chrono::milliseconds duration, Task
 template <typename T>
 void detail::ExpirableTask<T>::await_suspend(std::coroutine_handle<> coroutine) noexcept
 {
-    ctx_->caller_coroutine_ = coroutine;
+    SuperType::ctx_->caller_coroutine_ = coroutine;
     auto exe_ctx = get_current_context().lock();
     auto done = done_;
     exe_ctx->spawn([this, done]() -> Routine {
         bool _done = false;
         if (done->compare_exchange_strong(_done, true)) {
-            this->set_result(std::optional<T>(co_await task));
+            this->set_result(std::optional<T>(co_await task_));
             this->resume();
         }
     });
@@ -89,7 +89,8 @@ template <typename Callable>
 template <typename Callable>
 void detail::ExpirableTaskAnyfunc<Callable>::await_suspend(std::coroutine_handle<> coroutine) noexcept
 {
-    ctx_->caller_coroutine_ = coroutine;
+    SuperType::ctx_->caller_coroutine_ = coroutine;
+    //ctx_->caller_coroutine_ = coroutine;
     auto done = done_;
     get_current_executor()->post(PriorityTask {
         .priority = 1,

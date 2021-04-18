@@ -33,6 +33,7 @@ private:
 
 template <typename T>
 class ExpirableTask : public Task<std::optional<T>> {
+    using SuperType = Task<std::optional<T>>;
 public:
     ExpirableTask(std::chrono::milliseconds duration, Task<T> task);
     void await_suspend(std::coroutine_handle<> coroutine) noexcept;
@@ -50,6 +51,7 @@ struct DoneFlag {
 //TODO: 返回类型是void
 template <typename Callable>
 class ExpirableTaskAnyfunc : public Task<std::optional<std::invoke_result<Callable>>> {
+    using SuperType = Task<std::optional<std::invoke_result<Callable>>>;
 public:
     ExpirableTaskAnyfunc(std::chrono::milliseconds duration, Callable&& callable);
     void await_suspend(std::coroutine_handle<> coroutine) noexcept;

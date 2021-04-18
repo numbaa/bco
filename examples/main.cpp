@@ -38,7 +38,7 @@ public:
             }
             auto shared_that = shared_this;
             while (true) {
-                bco::net::TcpSocket<P> cli_sock = co_await socket.accept();
+                auto [cli_sock, addr] = co_await socket.accept();
                 shared_that->ctx_->spawn(std::bind(&EchoServer::serve, shared_that.get(), shared_that, cli_sock));
             }
         }));

@@ -40,8 +40,8 @@ public:
     static Address from_storage(const sockaddr_storage& storage);
 
 private:
-    int family_;
-    uint16_t port_;
+    int family_ = -1;
+    uint16_t port_ = 0;
     union IP {
         in_addr v4;
         in6_addr v6;

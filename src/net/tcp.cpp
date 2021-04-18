@@ -5,6 +5,7 @@
 #else
 #include <bco/net/proactor/epoll.h>
 #endif // _WIN32
+#include "../common.h"
 
 namespace bco {
 
@@ -68,22 +69,20 @@ Task<int> TcpSocket<P>::send(bco::Buffer buffer)
 }
 
 template <SocketProactor P>
-Task<TcpSocket<P>> TcpSocket<P>::accept()
+Task<std::tuple<TcpSocket<P>, Address>> TcpSocket<P>::accept()
 {
-    Task<TcpSocket> task;
+    Task<std::tuple<TcpSocket<P>, Address>> task;
     auto proactor = proactor_;
-    int fd = proactor_->accept(socket_, [task, proactor](int fd) mutable {
+    int ret = proactor_->accept(socket_, [task, proactor](int fd, const ::sockaddr_storage& address) mutable {
         if (task.await_ready())
             return;
         TcpSocket s { proactor, fd };
-        task.set_result(std::move(s));
+        task.set_result(std::make_tuple(s, Address::from_storage(address )));
         task.resume();
     });
-    if (fd > 0) {
-        TcpSocket s { proactor, fd };
-        task.set_result(std::move(s));
-    } else if (fd < 0) {
-        assert(false);
+    if (ret < 0) {
+        TcpSocket s{};
+        task.set_result(std::make_tuple(s, Address {}));
     }
     return task;
 }
@@ -102,12 +101,8 @@ Task<int> TcpSocket<P>::connect(const Address& addr)
         }
         task.resume();
     });
-    if (ret == 0) {
-        task.set_result(0);
-    } else if (ret < 0) {
-        task.set_result(-errno);
-    } else {
-        assert(false);
+    if (ret < 0) {
+        task.set_result(std::move(ret));
     }
     return task;
 }
@@ -115,16 +110,28 @@ Task<int> TcpSocket<P>::connect(const Address& addr)
 template <SocketProactor P>
 int TcpSocket<P>::listen(int backlog)
 {
-    return proactor_->listen(socket_, backlog);
+    return listen_socket(socket_, backlog);
 }
 
 template <SocketProactor P>
 int TcpSocket<P>::bind(const Address& addr)
 {
     auto storage = addr.to_storage();
-    return proactor_->bind(socket_, storage);
+    return bind_socket(socket_, storage);
 }
 
+template <SocketProactor P>
+void TcpSocket<P>::shutdown(Shutdown how)
+{
+    shutdown_socket(socket_, static_cast<int>(how));
 }
 
+template <SocketProactor P>
+void TcpSocket<P>::close()
+{
+    close_socket(socket_);
 }
+
+} // namespace net
+
+} // namespace bco

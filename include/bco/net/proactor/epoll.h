@@ -68,8 +68,6 @@ public:
     void stop();
 
     int create(int domain, int type);
-    int bind(int s, const sockaddr_storage& addr);
-    int listen(int s, int backlog);
 
     int recv(int s, bco::Buffer buff, std::function<void(int)> cb);
 

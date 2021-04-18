@@ -48,6 +48,10 @@ public:
     private:
         std::weak_ptr<bco::detail::ContextBase> ctx_;
     };
+    std::strong_ordering operator<=>(const Routine& other) const
+    {
+        return promise_ <=> other.promise_;
+    }
 
 private:
     friend class promise_type;
@@ -55,6 +59,7 @@ private:
         : promise_(promise)
     {
     }
+
 
 private:
     promise_type* promise_;

@@ -178,16 +178,6 @@ int IOUring::create(int domain, int type)
     return static_cast<int>(fd);
 }
 
-int IOUring::bind(int s, const sockaddr_storage& addr)
-{
-    return ::bind(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
-}
-
-int IOUring::listen(int s, int backlog)
-{
-    return ::listen(s, backlog);
-}
-
 int IOUring::recv(int s, bco::Buffer buff, std::function<void(int)> cb)
 {
     uint64_t id = lastest_task_id_.fetch_add(1);

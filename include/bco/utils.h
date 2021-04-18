@@ -1,9 +1,11 @@
 #pragma once
 
 #ifdef _WIN32
-#include <MSWSock.h>
-#include <WS2tcpip.h>
+// clang-format off
 #include <WinSock2.h>
+#include <WS2tcpip.h>
+#include <MSWSock.h>
+// clang-format on
 #else
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -31,7 +33,7 @@ template <typename T>
 inline void write_big_endian(uint8_t* buff, const T& value)
 {
     for (size_t i = 0; i < sizeof(value); i++) {
-        buff[i] = value >> ((sizeof(value) - 1 - i) * 8);
+        buff[i] = static_cast<uint8_t>(value >> ((sizeof(value) - 1 - i) * 8));
     }
 }
 
@@ -48,7 +50,7 @@ template <typename T>
 inline void write_little_endian(uint8_t* buff, const T& value)
 {
     for (size_t i = 0; i < sizeof(value); i++) {
-        buff[i] = value >> (i * 8);
+        buff[i] = static_cast<uint8_t>(value >> (i * 8));
     }
 }
 
@@ -77,7 +79,7 @@ inline in6_addr to_ipv6(const std::string& str)
 
 class WaitGroup {
 public:
-    explicit WaitGroup(uint32_t size)
+    explicit WaitGroup(size_t size)
         : size_(size)
     {
         if (size_ == 0)
@@ -85,7 +87,7 @@ public:
     }
     void done()
     {
-        int size;
+        size_t size;
         {
             std::lock_guard lock { mtx_ };
             size_ -= 1;
@@ -103,7 +105,7 @@ public:
 private:
     std::mutex mtx_;
     std::condition_variable cv_;
-    uint32_t size_;
+    size_t size_;
 };
 
 namespace detail {

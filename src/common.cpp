@@ -1,5 +1,10 @@
+#ifdef _WIN32
+//#include <WinSock2.h>
+//#include <WS2tcpip.h>
+#else
 #include <sys/socket.h>
 #include <sys/uio.h>
+#endif // _WIN32
 
 #include "common.h"
 
@@ -98,7 +103,7 @@ int syscall_sendmsg(int s, bco::Buffer buff, const sockaddr_storage& addr)
 #endif // _WIN32
 }
 
-int syscall_recvmsg(int s, bco::Buffer buff, sockaddr_storage& addr)
+int syscall_recvmsg(int s, bco::Buffer buff, sockaddr_storage& addr, void* func_addr)
 {
     auto slices = buff.data();
 #ifdef _WIN32
@@ -116,7 +121,7 @@ int syscall_recvmsg(int s, bco::Buffer buff, sockaddr_storage& addr)
         .dwFlags = 0,
     };
     DWORD bytes_read = 0;
-    LPFN_WSARECVMSG WSARecvMsg = nullptr; //TODO: get function ptr
+    auto WSARecvMsg = (LPFN_WSARECVMSG)func_addr;
     int ret = WSARecvMsg(s, &wsamsg, &bytes_read, nullptr, nullptr);
     if (ret != 0) {
         return SOCKET_ERROR;
@@ -124,6 +129,7 @@ int syscall_recvmsg(int s, bco::Buffer buff, sockaddr_storage& addr)
         return bytes_read;
     }
 #else
+    (void)func_addr;
     std::vector<::iovec> iovecs(slices.size());
     for (size_t i = 0; i < iovecs.size(); i++) {
         iovecs[i] = ::iovec { slices[i].data(), slices[i].size() };

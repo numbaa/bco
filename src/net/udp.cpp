@@ -5,6 +5,8 @@
 #else
 #include <bco/net/proactor/epoll.h>
 #endif // _WIN32
+#include "../common.h"
+
 
 namespace bco {
 
@@ -21,10 +23,21 @@ template <SocketProactor P>
 std::tuple<UdpSocket<P>, int> UdpSocket<P>::create(P* proactor, int family)
 {
     int fd = proactor->create(family, SOCK_DGRAM);
-    if (fd < 0)
+    if (fd < 0) {
         return { UdpSocket {}, -1 };
-    else
-        return { UdpSocket { proactor, family, fd }, 0 };
+    }
+#ifdef _WIN32
+    auto func = get_recvmsg_func(fd);
+    if (func == nullptr) {
+        close_socket(fd);
+        return { UdpSocket {}, -1 };
+    }
+    auto udp_socket = UdpSocket { proactor, family, fd };
+    udp_socket.set_recvmsg_func(func);
+    return { udp_socket, 0 };
+#else
+    return { UdpSocket { proactor, family, fd }, 0 };
+#endif // _WIN32
 }
 
 template <SocketProactor P>
@@ -51,6 +64,7 @@ Task<int> UdpSocket<P>::recv(bco::Buffer buffer)
     return task;
 }
 
+//FIXME: support select
 template <SocketProactor P>
 Task<std::tuple<int, Address>> UdpSocket<P>::recvfrom(bco::Buffer buffer)
 {
@@ -83,7 +97,7 @@ template <SocketProactor P>
 int UdpSocket<P>::bind(const Address& addr)
 {
     auto storage = addr.to_storage();
-    return proactor_->bind(socket_, storage);
+    return bind_socket(socket_, storage);
 }
 
 template <SocketProactor P>
@@ -93,6 +107,12 @@ int UdpSocket<P>::connect(const Address& addr)
     return proactor_->connect(socket_, storage);
 }
 
+template <SocketProactor P>
+void UdpSocket<P>::close()
+{
+    close_socket(socket_);
 }
 
-}
+} // namespace net
+
+} // namespace bco

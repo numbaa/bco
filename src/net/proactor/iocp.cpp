@@ -1,7 +1,8 @@
 #ifdef _WIN32
-#include <MSWSock.h>
+// clang-format off
 #include <WinSock2.h>
-
+#include <MSWSock.h>
+// clang-format on
 #include <cassert>
 #include <cstdint>
 
@@ -70,16 +71,6 @@ int IOCP::create(int domain, int type)
         return static_cast<int>(fd);
     ::CreateIoCompletionPort(reinterpret_cast<HANDLE>(fd), complete_port_, NULL, 0);
     return static_cast<int>(fd);
-}
-
-int IOCP::bind(int s, const sockaddr_storage& addr)
-{
-    return ::bind(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
-}
-
-int IOCP::listen(int s, int backlog)
-{
-    return ::listen(s, backlog);
 }
 
 void IOCP::start()
@@ -192,19 +183,11 @@ int IOCP::accept(int s, std::function<void(int, const sockaddr_storage&)> cb)
     ::SecureZeroMemory((PVOID)&overlap_info->overlapped, sizeof(WSAOVERLAPPED));
     DWORD bytes;
     bool success = ::AcceptEx(s, overlap_info->sock, overlap_info->buff.data(), 0, sizeof(SOCKADDR_IN) + 16, sizeof(SOCKADDR_IN) + 16, &bytes, &overlap_info->overlapped);
-    if (success) {
-        SOCKET sock = overlap_info->sock;
-        delete overlap_info;
-        //不让用nullptr...
-        if (CreateIoCompletionPort(reinterpret_cast<HANDLE>(sock), complete_port_, NULL, 0) == complete_port_)
-            return static_cast<int>(sock);
-        else
-            return -1;
+    int last_error = ::WSAGetLastError();
+    if (!success && last_error != WSA_IO_PENDING) {
+        return -last_error;
     }
-    if (WSAGetLastError() == WSA_IO_PENDING) {
-        return 0;
-    }
-    return -1;
+    return 0;
 }
 
 LPFN_CONNECTEX GetConnectEx(SOCKET so)

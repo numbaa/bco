@@ -44,16 +44,6 @@ int Select::create(int domain, int type)
     return static_cast<int>(fd);
 }
 
-int Select::bind(int s, const sockaddr_storage& addr)
-{
-    return ::bind(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
-}
-
-int Select::listen(int s, int backlog)
-{
-    return ::listen(s, backlog);
-}
-
 void Select::start(ExecutorInterface* executor)
 {
     io_executor_ = executor;

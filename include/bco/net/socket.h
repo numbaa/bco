@@ -67,15 +67,15 @@ concept SocketProactor = bco::Proactor<T>&& requires(T p, int fd, int domain, in
     }
     ->std::same_as<int>;
 
-    {
-        p.bind(fd, addr)
-    }
-    ->std::same_as<int>;
+    //{
+    //    p.bind(fd, addr)
+    //}
+    //->std::same_as<int>;
 
-    {
-        p.listen(fd, backlog)
-    }
-    ->std::same_as<int>;
+    //{
+    //    p.listen(fd, backlog)
+    //}
+    //->std::same_as<int>;
 };
 
 } // namespace net

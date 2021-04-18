@@ -3,6 +3,7 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <set>
 
 #include <bco/coroutine/task.h>
@@ -13,8 +14,7 @@ namespace bco {
 
 namespace detail {
 
-//TODO: 增加更多管理routine的功能
-class ContextBase : public ::std::enable_shared_from_this<ContextBase> {
+class ContextBase : public std::enable_shared_from_this<ContextBase> {
     using TimePoint = std::chrono::steady_clock::time_point;
     using Clock = std::chrono::steady_clock;
 
@@ -48,9 +48,9 @@ public:
         constexpr auto _time = TimePoint {};
         routines_.erase(RoutineInfo { routine, _time });
     }
-    size_t routines_size() const
+    size_t routines_size()
     {
-        std::lock_guard { mutex_ };
+        std::lock_guard lock { mutex_ };
         return routines_.size();
     }
 
@@ -67,9 +67,13 @@ private:
     struct RoutineInfo {
         Routine routine;
         TimePoint start_time;
+        std::strong_ordering operator<=>(const RoutineInfo& other) const
+        {
+            return routine <=> other.routine;
+        }
     };
     std::mutex mutex_;
-    std::set<RoutineInfo, std::less<Routine>> routines_;
+    std::set<RoutineInfo> routines_;
 };
 
 } // namespace detail

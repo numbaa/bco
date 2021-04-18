@@ -2,6 +2,7 @@
 #include <deque>
 #include <mutex>
 #include <bco/utils.h>
+#include <bco/context.h>
 #include "task.h"
 
 namespace bco {
@@ -19,9 +20,9 @@ public:
             Item item = pending_tasks_.front();
             pending_tasks_.pop_front();
             item.task.set_result(std::move(value));
-            auto ctx = item.ctx.lock();
+            std::shared_ptr<bco::detail::ContextBase> ctx = item.ctx.lock();
             if (ctx != nullptr) {
-                ctx->spawn([item]() -> Routine { co_await item.task; });
+                ctx->spawn([item]() mutable -> Routine { co_await item.task; });
             }
         }
     }
@@ -31,7 +32,7 @@ public:
         if (ready_values_.empty()) {
             Item item;
             item.ctx = get_current_context();
-            pending_tasks_.push_back(item.task);
+            pending_tasks_.push_back(item);
             return item.task;
         } else {
             Task<T> task;
@@ -46,7 +47,7 @@ private:
     // Context ctx_;
     struct Item {
         Task<T> task;
-        std::shared_ptr<detail::ContextBase> ctx;
+        std::weak_ptr<detail::ContextBase> ctx;
     };
     std::deque<Item> pending_tasks_;
     std::deque<T> ready_values_;

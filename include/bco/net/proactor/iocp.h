@@ -1,7 +1,9 @@
 #pragma once
 #ifdef _WIN32
-#include <WinSock2.h>
+// clang-format off
 #include <Windows.h>
+#include <WinSock2.h>
+// clang-format on
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -40,8 +42,6 @@ public:
     void stop();
 
     int create(int domain, int type);
-    int bind(int s, const sockaddr_storage& addr);
-    int listen(int s, int backlog);
 
     int recv(int s, bco::Buffer buff, std::function<void(int)> cb);
 

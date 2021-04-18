@@ -107,6 +107,7 @@ bool MultithreadExecutor::do_own_job(const size_t worker_index)
 bool MultithreadExecutor::steal_job(const size_t worker_index)
 {
     //‘›≤ª µœ÷
+    (void)worker_index;
     return false;
 }
 

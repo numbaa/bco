@@ -1,21 +1,19 @@
 #include <bco/buffer.h>
 #include <bco/utils.h>
-#include "magic.h"
 
 namespace bco {
 
-namespace detail {
-
-void BCO_UNIQUE_FUNC(bco_buffer)
+namespace {
+void __bco_magic_func()
 {
     uint8_t u8;
     uint16_t u16;
     uint32_t u32;
     uint64_t u64;
-    int8_t i8;
-    int16_t i16;
-    int32_t i32;
-    int64_t i64;
+    //int8_t i8;
+    //int16_t i16;
+    //int32_t i32;
+    //int64_t i64;
     bco::Buffer buf;
     buf.read_big_endian_at(0, u8);
     buf.read_big_endian_at(0, u16);
@@ -34,6 +32,10 @@ void BCO_UNIQUE_FUNC(bco_buffer)
     buf.write_little_endian_at(0, u32);
     buf.write_little_endian_at(0, u64);
 }
+} // namespace
+
+namespace detail {
+
 
 BufferBase::BufferBase(size_t size)
     : buffer_({ std::vector<uint8_t>(size) })
