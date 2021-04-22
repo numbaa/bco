@@ -275,13 +275,21 @@ void IOCP::handle_overlap_success(WSAOVERLAPPED* overlapped, int bytes)
     switch (overlap_info->action) {
     case OverlapAction::Accept: {
         AcceptOverlapInfo* accept_info = reinterpret_cast<AcceptOverlapInfo*>(overlapped);
+        sockaddr_storage addr {};
         if (accept_info->sock >= 0) {
             SOCKET handle = accept_info->sock;
             ::CreateIoCompletionPort(reinterpret_cast<HANDLE>(handle), complete_port_, NULL, 0);
+            sockaddr* local = nullptr;
+            sockaddr* remote = nullptr;
+            int local_len, remote_len;
+            GetAcceptExSockaddrs(accept_info->buff.data(), 0, sizeof(sockaddr_storage) + 16, sizeof(sockaddr_storage) + 16, &local, &local_len, &remote, &remote_len);
+            if (remote != nullptr) {
+                addr = *reinterpret_cast<sockaddr_storage*>(remote);
+            }
         }
         {
             std::lock_guard lock { mtx_ };
-            completed_tasks_.push_back(PriorityTask { 0, std::bind(overlap_info->cb, overlap_info->sock) });
+            completed_tasks_.push_back(PriorityTask { 0, std::bind(accept_info->cb2, overlap_info->sock, addr) });
         }
         delete accept_info;
         break;

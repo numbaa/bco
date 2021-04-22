@@ -21,7 +21,7 @@ namespace bco {
 
 namespace net {
 
-class Epoll {
+class Epoll : public ProactorInterface {
     enum class Action : uint32_t {
         None = 0,
         Recv = 0b00001,
@@ -47,22 +47,8 @@ class Epoll {
     };
 
 public:
-    class GetterSetter {
-    public:
-        Epoll* proactor() { return epoll_.get(); }
-        Epoll* socket_proactor() { return epoll_.get(); }
-        void set_socket_proactor(std::unique_ptr<Epoll>&& ep)
-        {
-            epoll_ = std::move(ep);
-        }
-
-    private:
-        std::unique_ptr<Epoll> epoll_;
-    };
-
-public:
     Epoll();
-    ~Epoll();
+    ~Epoll() override;
 
     void start(ExecutorInterface* executor);
     void stop();
@@ -83,7 +69,7 @@ public:
     int connect(int s, const sockaddr_storage& addr, std::function<void(int)> cb);
     int connect(int s, const sockaddr_storage& addr);
 
-    std::vector<PriorityTask> harvest_completed_tasks();
+    std::vector<PriorityTask> harvest_completed_tasks() override;
 
 private:
     std::map<int, EpollTask> get_pending_tasks();

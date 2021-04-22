@@ -19,7 +19,7 @@ namespace bco {
 
 namespace net {
 
-class IOUring {
+class IOUring : public ProactorInterface {
 public:
     struct SQPoll {
         std::chrono::milliseconds idle_time;
@@ -28,19 +28,6 @@ public:
     struct Params {
         std::optional<SQPoll> sq_poll;
         std::optional<uint32_t> queue_depth;
-    };
-
-    class GetterSetter {
-    public:
-        IOUring* proactor() { return iouring_.get(); }
-        IOUring* socket_proactor() { return iouring_.get(); }
-        void set_socket_proactor(std::unique_ptr<IOUring>&& s)
-        {
-            iouring_ = std::move(s);
-        }
-
-    private:
-        std::unique_ptr<IOUring> iouring_;
     };
 
 private:
@@ -113,7 +100,7 @@ private:
 
 public:
     IOUring(const Params& params);
-    ~IOUring();
+    ~IOUring() override;
 
     void start(ExecutorInterface* executor);
     void stop();
@@ -134,7 +121,7 @@ public:
     int connect(int s, const sockaddr_storage& addr, std::function<void(int)> cb);
     int connect(int s, const sockaddr_storage& addr);
 
-    std::vector<PriorityTask> harvest_completed_tasks();
+    std::vector<PriorityTask> harvest_completed_tasks() override;
 
 private:
     void do_io();

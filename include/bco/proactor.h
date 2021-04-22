@@ -34,8 +34,13 @@ struct PriorityDelayTask : PriorityTask {
 
 template <typename T>
 concept Proactor = requires(T t) {
-    { typename T::GetterSetter{}.proactor() } -> std::same_as<T*>;
     { t.harvest_completed_tasks() } -> std::same_as<std::vector<PriorityTask>>;
+};
+
+class ProactorInterface {
+public:
+    virtual ~ProactorInterface() {};
+    virtual std::vector<PriorityTask> harvest_completed_tasks() = 0;
 };
 
 } // namespace bco

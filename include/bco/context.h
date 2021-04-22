@@ -1,69 +1,42 @@
 #pragma once
-#include <algorithm>
-#include <chrono>
-#include <functional>
+#include <cassert>
+#include <map>
+#include <set>
 #include <memory>
 #include <mutex>
-#include <set>
 
 #include <bco/coroutine/task.h>
 #include <bco/executor.h>
-#include <bco/proactor.h>
 
 namespace bco {
 
-namespace detail {
+class Context : public std::enable_shared_from_this<Context> {
+public:
+    Context() = default;
+    Context(std::unique_ptr<ExecutorInterface>&& executor);
 
-class ContextBase : public std::enable_shared_from_this<ContextBase> {
+    void set_executor(std::unique_ptr<ExecutorInterface>&& executor);
+    ExecutorInterface* executor();
+
+    template <typename P> requires Proactor<P> void add_proactor(std::unique_ptr<P>&& proactor);
+    template <typename P> requires Proactor<P> P* get_proactor();
+    std::vector<PriorityTask> get_proactor_tasks();
+
+    void start();
+    void spawn(std::function<Routine()>&& coroutine);
+    void add_routine(Routine routine);
+    void del_routine(Routine routine);
+    size_t routines_size();
+
+private:
+    void spawn_aux(std::function<Routine()> coroutine);
+
+private:
+    std::unique_ptr<ExecutorInterface> executor_;
+    std::map<std::size_t, std::unique_ptr<ProactorInterface>> proactors_;
+
     using TimePoint = std::chrono::steady_clock::time_point;
     using Clock = std::chrono::steady_clock;
-
-public:
-    ContextBase() = default;
-    ContextBase(std::unique_ptr<ExecutorInterface>&& executor)
-        : executor_{ std::move(executor) }
-    {
-    }
-    void start()
-    {
-        executor_->set_context(weak_from_this());
-        executor_->start();
-    }
-    ExecutorInterface* executor()
-    {
-        return executor_.get();
-    }
-    void spawn(std::function<Routine()>&& coroutine)
-    {
-        executor_->post(PriorityTask { 0, std::bind(&ContextBase::spawn_aux, this, coroutine) });
-    }
-    void add_routine(Routine routine)
-    {
-        std::lock_guard lock { mutex_ };
-        routines_.insert(RoutineInfo { routine, Clock::now() });
-    }
-    void del_routine(Routine routine)
-    {
-        std::lock_guard lock { mutex_ };
-        constexpr auto _time = TimePoint {};
-        routines_.erase(RoutineInfo { routine, _time });
-    }
-    size_t routines_size()
-    {
-        std::lock_guard lock { mutex_ };
-        return routines_.size();
-    }
-
-private:
-    void spawn_aux(std::function<Routine()> coroutine)
-    {
-        coroutine();
-    }
-
-protected:
-    std::unique_ptr<ExecutorInterface> executor_;
-
-private:
     struct RoutineInfo {
         Routine routine;
         TimePoint start_time;
@@ -72,44 +45,25 @@ private:
             return routine <=> other.routine;
         }
     };
-    std::mutex mutex_;
     std::set<RoutineInfo> routines_;
+    std::mutex mutex_;
 };
 
-} // namespace detail
+template <typename P> requires Proactor<P>
+inline void Context::add_proactor(std::unique_ptr<P>&& proactor)
+{
+    //proactors_[typeid(P).hash_code()] = std::move(proactor);
+    proactors_.emplace(typeid(P).hash_code(), std::move(proactor));
+}
 
-template <typename... Types>
-class Context;
-
-template <typename T, typename... Types>
-requires Proactor<T> class Context<T, Types...> : public T::GetterSetter, public Context<Types...> {
-public:
-    std::vector<PriorityTask> get_proactor_tasks()
-    {
-        auto tasks = T::GetterSetter::proactor()->harvest_completed_tasks();
-        std::ranges::copy(Context<Types...>::get_proactor_tasks(), std::back_inserter(tasks));
-        return tasks;
-    }
-};
-
-template <typename T>
-requires Proactor<T> class Context<T> : public T::GetterSetter, public detail::ContextBase {
-public:
-    Context() = default;
-    Context(std::unique_ptr<ExecutorInterface>&& executor)
-        : ContextBase { std::move(executor) }
-    {
-        executor_->set_proactor_task_getter(std::bind(&Context::get_proactor_tasks, this));
-    }
-    void set_executor(std::unique_ptr<ExecutorInterface>&& executor)
-    {
-        executor_ = std::move(executor);
-        executor_->set_proactor_task_getter(std::bind(&Context::get_proactor_tasks, this));
-    }
-    std::vector<PriorityTask> get_proactor_tasks()
-    {
-        return T::GetterSetter::proactor()->harvest_completed_tasks();
-    }
-};
+template <typename P> requires Proactor<P>
+inline P* Context::get_proactor()
+{
+#ifndef NODEBUG
+    auto it = proactors_.find(typeid(P).hash_code());
+    assert(it != proactors_.cend());
+#endif // NODEBUG
+    return static_cast<P*>(proactors_[typeid(P).hash_code()].get());
+}
 
 } // namespace bco

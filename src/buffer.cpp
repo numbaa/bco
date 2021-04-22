@@ -146,7 +146,8 @@ uint8_t& BufferBase::operator[](size_t index)
 std::vector<std::span<uint8_t>> BufferBase::data(size_t start, size_t end)
 {
     //TODO: ²âÊÔÕâ¸öº¯Êı
-    std::vector<std::span<uint8_t>> slices(buffer_.size());
+    std::vector<std::span<uint8_t>> slices;
+    slices.reserve(buffer_.size());
     size_t curr_pos = 0;
     for (auto& chunk : buffer_) {
         if (curr_pos >= end)

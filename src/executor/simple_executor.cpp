@@ -106,7 +106,7 @@ bool SimpleExecutor::is_current_executor()
     return std::this_thread::get_id() == thread_.get_id();
 }
 
-void SimpleExecutor::set_context(std::weak_ptr<detail::ContextBase> ctx)
+void SimpleExecutor::set_context(std::weak_ptr<Context> ctx)
 {
     ctx_ = ctx;
 }

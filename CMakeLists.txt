@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.15)
 
 project(bco)
 
@@ -7,17 +7,6 @@ option(BCO_BUILD_WITH_EXAMPLE "Build bco with example" ON)
 
 set(CMAKE_CXX_STANDARD 20)
 
-
-# macro WIN32_LEAN_AND_MEAN
-# gcc with windows, how ??
-
-if (MSVC)
-    add_definitions(-DNOMINMAX -DWIN32_LEAN_AND_MEAN)
-    add_compile_options(/W4 /WX)
-else()
-    add_compile_options(-fcoroutines)
-    add_compile_options(-Wall -Wextra -pedantic -Werror)
-endif()
 
 if(WIN32)
     set(PLAT_SPEC
@@ -37,6 +26,7 @@ add_library(${PROJECT_NAME} STATIC
     ${PLAT_SPEC}
     "include/bco.h"
     "include/bco/context.h"
+    "src/context.cpp"
     "include/bco/executor.h"
     "include/bco/utils.h"
 
@@ -69,6 +59,14 @@ add_library(${PROJECT_NAME} STATIC
     "src/coroutine/task.cpp"
     "include/bco/executor/multithread_executor.h"
     "src/executor/multithread_executor.cpp")
+
+if (MSVC)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC NOMINMAX WIN32_LEAN_AND_MEAN)
+    target_compile_options(${PROJECT_NAME} PUBLIC /W4 /WX /GR-)
+else()
+    target_compile_options(${PROJECT_NAME} PUBLIC -fcoroutines -fno-rtti)
+    target_compile_options(${PROJECT_NAME} PUBLIC -Wall -Wextra -pedantic -Werror)
+endif()
 
  if(WIN32)
  target_link_libraries(${PROJECT_NAME}

@@ -19,24 +19,11 @@ namespace bco {
 
 namespace net {
 
-class IOCP {
-public:
-    class GetterSetter {
-    public:
-        IOCP* proactor() { return iocp_.get(); }
-        IOCP* socket_proactor() { return iocp_.get(); }
-        void set_socket_proactor(std::unique_ptr<IOCP>&& s)
-        {
-            iocp_ = std::move(s);
-        }
-
-    private:
-        std::unique_ptr<IOCP> iocp_;
-    };
+class IOCP : public ProactorInterface {
 
 public:
     IOCP();
-    ~IOCP();
+    ~IOCP() override;
 
     void start();
     void stop();
@@ -57,7 +44,7 @@ public:
     int connect(int s, const sockaddr_storage& addr, std::function<void(int)> cb);
     int connect(int s, const sockaddr_storage& addr);
 
-    std::vector<PriorityTask> harvest_completed_tasks();
+    std::vector<PriorityTask> harvest_completed_tasks() override;
 
 private:
     void iocp_loop();

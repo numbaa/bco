@@ -23,7 +23,7 @@ namespace bco {
 
 namespace net {
 
-class Select {
+class Select : public ProactorInterface {
     enum class Action : uint32_t {
         Recv,
         Send,
@@ -43,22 +43,8 @@ class Select {
     };
 
 public:
-    class GetterSetter {
-    public:
-        Select* proactor() { return select_.get(); }
-        Select* socket_proactor() { return select_.get(); }
-        void set_socket_proactor(std::unique_ptr<Select>&& s)
-        {
-            select_ = std::move(s);
-        }
-
-    private:
-        std::unique_ptr<Select> select_;
-    };
-
-public:
     Select();
-    ~Select();
+    ~Select() override;
 
     void start(ExecutorInterface* executor);
     void stop();
@@ -79,7 +65,7 @@ public:
     int connect(int s, const sockaddr_storage& addr, std::function<void(int)> cb);
     int connect(int s, const sockaddr_storage& addr);
 
-    std::vector<PriorityTask> harvest_completed_tasks();
+    std::vector<PriorityTask> harvest_completed_tasks() override;
 
 private:
     void do_io();

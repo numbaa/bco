@@ -76,7 +76,7 @@ Task<std::tuple<TcpSocket<P>, Address>> TcpSocket<P>::accept()
     int ret = proactor_->accept(socket_, [task, proactor](int fd, const ::sockaddr_storage& address) mutable {
         if (task.await_ready())
             return;
-        TcpSocket s { proactor, fd };
+        TcpSocket s { proactor, address.ss_family, fd };
         task.set_result(std::make_tuple(s, Address::from_storage(address )));
         task.resume();
     });

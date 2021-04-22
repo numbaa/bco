@@ -54,7 +54,7 @@ bool MultithreadExecutor::is_current_executor()
     return thread_ids_.find(std::this_thread::get_id()) != thread_ids_.cend();
 }
 
-void MultithreadExecutor::set_context(std::weak_ptr<detail::ContextBase> ctx)
+void MultithreadExecutor::set_context(std::weak_ptr<Context> ctx)
 {
     ctx_ = ctx;
 }

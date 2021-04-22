@@ -26,7 +26,7 @@ public:
     void start() override;
     void set_proactor_task_getter(std::function<std::vector<PriorityTask>()> func) override;
     bool is_current_executor() override;
-    void set_context(std::weak_ptr<detail::ContextBase> ctx) override;
+    void set_context(std::weak_ptr<Context> ctx) override;
 
 private:
     void main_loop();
@@ -64,7 +64,7 @@ private:
     std::thread main_loop_thread_;
     std::priority_queue<PriorityDelayTask> delay_tasks_;
     WaitGroup wg_;
-    std::weak_ptr<detail::ContextBase> ctx_;
+    std::weak_ptr<Context> ctx_;
 
     std::function<std::vector<PriorityTask>()> get_proactor_task_;
 

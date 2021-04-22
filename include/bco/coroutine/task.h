@@ -46,7 +46,7 @@ public:
         {
         }
     private:
-        std::weak_ptr<bco::detail::ContextBase> ctx_;
+        std::weak_ptr<bco::Context> ctx_;
     };
     std::strong_ordering operator<=>(const Routine& other) const
     {

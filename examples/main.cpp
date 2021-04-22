@@ -5,10 +5,11 @@
 
 #include <bco.h>
 
-template <typename P> requires bco::net::SocketProactor<P>
-class EchoServer : public std::enable_shared_from_this<EchoServer<P>> {
+using CurrProactor = bco::net::IOCP;
+
+class EchoServer : public std::enable_shared_from_this<EchoServer> {
 public:
-    EchoServer(bco::Context<P>* ctx, uint16_t port)
+    EchoServer(std::shared_ptr<bco::Context> ctx, uint16_t port)
         : ctx_(ctx)
         , listen_port_(port)
     {
@@ -18,7 +19,7 @@ public:
     void start()
     {
         ctx_->spawn(std::move([shared_this = this->shared_from_this()]() -> bco::Routine {
-            auto [socket, error] = bco::net::TcpSocket<P>::create(shared_this->ctx_->socket_proactor(), AF_INET);
+            auto [socket, error] = bco::net::TcpSocket<CurrProactor>::create(shared_this->ctx_->get_proactor<CurrProactor>(), AF_INET);
             if (error < 0) {
                 std::cerr << "Create socket failed with " << error << std::endl;
                 co_return;
@@ -42,10 +43,12 @@ public:
                 shared_that->ctx_->spawn(std::bind(&EchoServer::serve, shared_that.get(), shared_that, cli_sock));
             }
         }));
+
+        ctx_->start();
     }
 
 private:
-    bco::Routine serve(std::shared_ptr<EchoServer> shared_this, bco::net::TcpSocket<P> sock)
+    bco::Routine serve(std::shared_ptr<EchoServer> shared_this, bco::net::TcpSocket<CurrProactor> sock)
     {
         bco::Buffer buffer(1024);
         while (true) {
@@ -55,14 +58,14 @@ private:
                 co_return;
             }
             const auto data = buffer.data();
-            std::cout << "Received: " << std::string((const char*)data[0].data(), bytes_received);
+            std::cout << "Received size:" << bytes_received << ", message:" << std::string((const char*)data[0].data(), bytes_received) << std::endl;
             int bytes_sent = co_await sock.send(buffer.subbuf(0, bytes_received));
-            std::cout << "Sent: " << std::string((const char*)data[0].data(), bytes_sent);
+            std::cout << "Sent size:" << bytes_received << ", message:" << std::string((const char*)data[0].data(), bytes_sent) << std::endl;
         }
     }
 
 private:
-    bco::Context<P>* ctx_;
+    std::shared_ptr<bco::Context> ctx_;
     uint16_t listen_port_;
 };
 
@@ -77,18 +80,15 @@ void init_winsock()
 int main()
 {
     init_winsock();
-    auto iocp = std::make_unique<bco::net::IOCP>();
-    iocp->start();
-    //auto se = std::make_unique<bco::net::Select>();
-    //se->start();
-    //auto epoll = std::make_unique<bco::net::Epoll>();
-    //epoll->start();
-    auto executor = std::make_unique<bco::SimpleExecutor>();
-    bco::Context<bco::net::IOCP> ctx;
-    ctx.set_socket_proactor(std::move(iocp));
-    ctx.set_executor(std::move(executor));
-    auto server = std::make_shared<EchoServer<bco::net::IOCP>>(&ctx, uint16_t { 30000 });
+    auto ctx = std::make_shared<bco::Context>(std::make_unique<bco::SimpleExecutor>());
+    auto socket_proactor = std::make_unique<CurrProactor>();
+    socket_proactor->start(/*ctx->executor()*/);
+    ctx->add_proactor(std::move(socket_proactor));
+    auto server = std::make_shared<EchoServer>(ctx, uint16_t { 30000 });
     server->start();
-    ctx.start();
+    while (true) {
+        std::this_thread::sleep_for(std::chrono::seconds { 1000 });
+    }
+
     return 0;
 }

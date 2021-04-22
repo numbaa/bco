@@ -4,14 +4,14 @@
 
 namespace bco {
 
-thread_local std::weak_ptr<detail::ContextBase> current_thread_ctx;
+thread_local std::weak_ptr<Context> current_thread_ctx;
 
-std::weak_ptr<detail::ContextBase> get_current_context()
+std::weak_ptr<Context> get_current_context()
 {
     return current_thread_ctx;
 }
 
-void set_current_thread_context(std::weak_ptr<detail::ContextBase> ctx)
+void set_current_thread_context(std::weak_ptr<Context> ctx)
 {
     current_thread_ctx = ctx;
 }

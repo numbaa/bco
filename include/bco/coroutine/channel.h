@@ -20,7 +20,7 @@ public:
             Item item = pending_tasks_.front();
             pending_tasks_.pop_front();
             item.task.set_result(std::move(value));
-            std::shared_ptr<bco::detail::ContextBase> ctx = item.ctx.lock();
+            std::shared_ptr<bco::Context> ctx = item.ctx.lock();
             if (ctx != nullptr) {
                 ctx->spawn([item]() mutable -> Routine { co_await item.task; });
             }
@@ -47,7 +47,7 @@ private:
     // Context ctx_;
     struct Item {
         Task<T> task;
-        std::weak_ptr<detail::ContextBase> ctx;
+        std::weak_ptr<Context> ctx;
     };
     std::deque<Item> pending_tasks_;
     std::deque<T> ready_values_;

@@ -108,12 +108,10 @@ private:
     size_t size_;
 };
 
-namespace detail {
-class ContextBase;
-}
+class Context;
 
-void set_current_thread_context(std::weak_ptr<detail::ContextBase> ctx);
-std::weak_ptr<detail::ContextBase> get_current_context();
+void set_current_thread_context(std::weak_ptr<Context> ctx);
+std::weak_ptr<Context> get_current_context();
 ExecutorInterface* get_current_executor();
 
 } // namespace bco
