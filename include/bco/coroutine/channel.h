@@ -22,7 +22,7 @@ public:
             item.task.set_result(std::move(value));
             std::shared_ptr<bco::Context> ctx = item.ctx.lock();
             if (ctx != nullptr) {
-                ctx->spawn([item]() mutable -> Routine { co_await item.task; });
+                ctx->spawn([item]() mutable -> Routine { item.task.resume(); co_return; });
             }
         }
     }
