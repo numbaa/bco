@@ -62,10 +62,10 @@ add_library(${PROJECT_NAME} STATIC
 
 if (MSVC)
     target_compile_definitions(${PROJECT_NAME} PUBLIC NOMINMAX WIN32_LEAN_AND_MEAN)
-    target_compile_options(${PROJECT_NAME} PUBLIC /W4 /WX /GR-)
+    target_compile_options(${PROJECT_NAME} PRIVATE /W4 /WX /GR-)
 else()
-    target_compile_options(${PROJECT_NAME} PUBLIC -fcoroutines -fno-rtti)
-    target_compile_options(${PROJECT_NAME} PUBLIC -Wall -Wextra -pedantic -Werror)
+    target_compile_options(${PROJECT_NAME} PRIVATE -fcoroutines -fno-rtti)
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic -Werror)
 endif()
 
  if(WIN32)

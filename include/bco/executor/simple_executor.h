@@ -40,6 +40,7 @@ private:
     std::thread thread_;
     bool started_ = false;
     std::weak_ptr<Context> ctx_;
+    bool stoped_ = false;
 };
 
 } //namespace bco

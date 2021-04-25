@@ -8,16 +8,51 @@
 
 #include <cstring>
 
+#include <bco/utils.h>
 #include <bco/net/address.h>
 
 namespace bco {
 
 namespace net {
 
+IPv4::IPv4(const std::string& ipstr)
+    : ip_ { to_ipv4(ipstr) }
+{
+}
+
+in_addr IPv4::to_in_addr() const
+{
+    return ip_;
+}
+
+IPv6::IPv6(const std::string& ipstr)
+    : ip_ { to_ipv6(ipstr) }
+{
+}
+
+in6_addr IPv6::to_in6_addr() const
+{
+    return ip_;
+}
+
+Address::Address(IPv4 ip, uint16_t port)
+    : family_(AF_INET)
+    , port_(port)
+    , ip_(ip.to_in_addr())
+{
+}
+
 Address::Address(in_addr ip, uint16_t port)
     : family_(AF_INET)
     , port_(port)
     , ip_(ip)
+{
+}
+
+Address::Address(const IPv6& ip, uint16_t port)
+    : family_(AF_INET6)
+    , port_(port)
+    , ip_(ip.to_in6_addr())
 {
 }
 

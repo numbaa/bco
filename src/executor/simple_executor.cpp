@@ -9,7 +9,12 @@ namespace bco {
 
 SimpleExecutor::~SimpleExecutor()
 {
-    //TODO: implement
+    {
+        std::lock_guard lock { mutex_ };
+        stoped_ = true;
+    }
+    sleep_cv_.notify_one();
+    thread_.join();
 }
 
 void SimpleExecutor::post(PriorityTask task)
@@ -41,7 +46,7 @@ void SimpleExecutor::do_start()
     set_current_thread_context(ctx_);
     startup_cv_.notify_one();
 
-    while (true) {
+    while (!stoped_) {
         auto old_tasks = get_pending_tasks();
         auto [delay_tasks, sleep_for] = get_timeup_delay_tasks();
         auto proactor_tasks = get_proactor_task_();

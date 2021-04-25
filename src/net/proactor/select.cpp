@@ -52,6 +52,13 @@ void Select::start(ExecutorInterface* executor)
         .task = std::bind(&Select::do_io, this) });
 }
 
+void Select::start(std::unique_ptr<ExecutorInterface>&& executor)
+{
+    io_executor_holder_ = std::move(executor);
+    start(io_executor_holder_.get());
+    io_executor_holder_->start();
+}
+
 void Select::stop()
 {
     stop_event_.emit();

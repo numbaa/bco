@@ -6,6 +6,7 @@
 #else
 #endif
 #include <cstdint>
+#include <string>
 
 namespace bco
 {
@@ -13,10 +14,32 @@ namespace bco
 namespace net
 {
 
+class IPv4 {
+public:
+    IPv4() = default;
+    IPv4(const std::string& ipstr);
+    in_addr to_in_addr() const;
+
+private:
+    in_addr ip_ {};
+};
+
+class IPv6 {
+public:
+    IPv6() = default;
+    IPv6(const std::string& ipstr);
+    in6_addr to_in6_addr() const;
+
+private:
+    in6_addr ip_ {};
+};
+
 class Address {
 public:
     Address() = default;
+    Address(IPv4 ip, uint16_t port);
     Address(in_addr ip, uint16_t port);
+    Address(const IPv6& ip, uint16_t port);
     Address(const in6_addr& ip, uint16_t port);
     explicit Address(const sockaddr_in& addr);
     explicit Address(const sockaddr_in6& addr);

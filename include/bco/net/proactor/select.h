@@ -47,6 +47,7 @@ public:
     ~Select() override;
 
     void start(ExecutorInterface* executor);
+    void start(std::unique_ptr<ExecutorInterface>&& executor);
     void stop();
 
     int create(int domain, int type);
@@ -93,6 +94,7 @@ private:
     fd_set efds_ {};
     bool started_ { false };
     ExecutorInterface* io_executor_;
+    std::unique_ptr<ExecutorInterface> io_executor_holder_;
 };
 
 } // namespace net
