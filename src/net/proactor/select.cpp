@@ -73,12 +73,18 @@ int Select::recv(int s, bco::Buffer buff, std::function<void(int length)> cb)
     return 0;
 }
 
-int Select::recvfrom(int s, bco::Buffer buff, std::function<void(int, const sockaddr_storage&)> cb)
+int Select::recvfrom(int s, bco::Buffer buff, std::function<void(int, const sockaddr_storage&)> cb, void* optdata)
 {
     std::lock_guard lock { mtx_ };
     if (s > max_rfd_)
         max_rfd_ = s;
+#ifdef _WIN32
+    auto stask = SelectTask { s, Action::Recvfrom, buff, cb };
+    stask.recvmsg_func = optdata;
+    pending_rfds_[s] = stask;
+#else
     pending_rfds_[s] = SelectTask { s, Action::Recvfrom, buff, cb };
+#endif // _WIN32
     return 0;
 }
 
@@ -123,9 +129,13 @@ int Select::send(int s, bco::Buffer buff)
 }
 
 //for udp
-int Select::sendto(int s, bco::Buffer buff, const sockaddr_storage& addr)
+int Select::sendto(int s, bco::Buffer buff, const sockaddr_storage& addr, void* optdata)
 {
+#ifdef _WIN32
+    int bytes = syscall_sendmsg(s, buff, addr, optdata);
+#else
     int bytes = syscall_sendmsg(s, buff, addr);
+#endif // _WIN32
     if (bytes == -1)
         return -last_error();
     else
@@ -259,7 +269,7 @@ void Select::do_recv(const SelectTask& task)
 void Select::do_recvfrom(const SelectTask& task)
 {
     sockaddr_storage addr;
-    int bytes = syscall_recvmsg(task.fd, task.buff, addr);
+    int bytes = syscall_recvmsg(task.fd, task.buff, addr, task.recvmsg_func);
     if (bytes >= 0 || (last_error() != EAGAIN && last_error() != EWOULDBLOCK)) {
         std::lock_guard lock { mtx_ };
         pending_rfds_.erase(task.fd);

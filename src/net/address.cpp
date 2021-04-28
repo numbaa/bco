@@ -172,12 +172,12 @@ sockaddr_storage Address::to_storage() const
     if (family_ == AF_INET) {
         sockaddr_in* addr = reinterpret_cast<sockaddr_in*>(&storage);
         addr->sin_family = AF_INET;
-        addr->sin_port = port_;
+        addr->sin_port = ::htons(port_);
         addr->sin_addr = ip_.v4;
     } else if (family_ == AF_INET6) {
         sockaddr_in6* addr = reinterpret_cast<sockaddr_in6*>(&storage);
         addr->sin6_family = AF_INET6;
-        addr->sin6_port = port_;
+        addr->sin6_port = ::htons(port_);
         addr->sin6_addr = ip_.v6;
     }
     return storage;

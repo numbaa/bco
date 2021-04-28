@@ -127,14 +127,28 @@ inline void* get_recvmsg_func(int s)
     }
     return WSARecvMsg;
 }
+inline void* get_sendmsg_func(int s)
+{
+    GUID WSASendMsg_GUID = WSAID_WSASENDMSG;
+    LPFN_WSARECVMSG WSASendMsg;
+    DWORD NumberOfBytes;
+    int ret = ::WSAIoctl(s, SIO_GET_EXTENSION_FUNCTION_POINTER,
+        &WSASendMsg_GUID, sizeof(WSASendMsg_GUID),
+        &WSASendMsg, sizeof(WSASendMsg),
+        &NumberOfBytes, NULL, NULL);
+    if (ret == SOCKET_ERROR) {
+        return nullptr;
+    }
+    return WSASendMsg;
+}
 #endif // _WIN32
 
 int syscall_sendv(int s, bco::Buffer buff);
 
 int syscall_recvv(int s, bco::Buffer buff);
 
-int syscall_sendmsg(int s, bco::Buffer buff, const sockaddr_storage& addr);
+int syscall_sendmsg(int s, bco::Buffer buff, const sockaddr_storage& addr, void* sendmsg_func = nullptr);
 
-int syscall_recvmsg(int s, bco::Buffer buff, sockaddr_storage& addr, void* func_addr = nullptr);
+int syscall_recvmsg(int s, bco::Buffer buff, sockaddr_storage& addr, void* recvmsg_func = nullptr);
 
 } // namespace bco

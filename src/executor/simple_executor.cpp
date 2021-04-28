@@ -49,7 +49,7 @@ void SimpleExecutor::do_start()
     while (!stoped_) {
         auto old_tasks = get_pending_tasks();
         auto [delay_tasks, sleep_for] = get_timeup_delay_tasks();
-        auto proactor_tasks = get_proactor_task_();
+        auto proactor_tasks = get_proactor_tasks();
 
         if (old_tasks.empty() && delay_tasks.empty() && proactor_tasks.empty()) {
             std::unique_lock lock { mutex_ };
@@ -98,6 +98,15 @@ std::tuple<std::vector<PriorityTask>, std::chrono::microseconds> SimpleExecutor:
         return { tasks, std::chrono::duration_cast<std::chrono::microseconds>(delay_tasks_.top().run_at - now) };
     } else {
         return { tasks, std::chrono::microseconds { 10 } };
+    }
+}
+
+inline std::vector<PriorityTask> SimpleExecutor::get_proactor_tasks()
+{
+    if (get_proactor_task_ == nullptr) {
+        return {};
+    } else {
+        return get_proactor_task_();
     }
 }
 

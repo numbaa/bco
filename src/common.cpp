@@ -61,7 +61,7 @@ int syscall_recvv(int s, bco::Buffer buff)
 #endif // _WIN32
 }
 
-int syscall_sendmsg(int s, bco::Buffer buff, const sockaddr_storage& addr)
+int syscall_sendmsg(int s, bco::Buffer buff, const sockaddr_storage& addr, void* sendmsg_func)
 {
     const auto slices = buff.data();
 #ifdef _WIN32
@@ -79,13 +79,15 @@ int syscall_sendmsg(int s, bco::Buffer buff, const sockaddr_storage& addr)
         .dwFlags = 0,
     };
     DWORD bytes_sent = 0;
-    int ret = ::WSASendMsg(s, &wsamsg, 0, &bytes_sent, nullptr, nullptr);
+    auto WSASendMsg = static_cast<LPFN_WSASENDMSG>(sendmsg_func);
+    int ret = WSASendMsg(s, &wsamsg, 0, &bytes_sent, nullptr, nullptr);
     if (ret != 0) {
         return SOCKET_ERROR;
     } else {
         return bytes_sent;
     }
 #else
+    (void)sendmsg_func;
     std::vector<::iovec> iovecs(slices.size());
     for (size_t i = 0; i < iovecs.size(); i++) {
         iovecs[i] = ::iovec { slices[i].data(), slices[i].size() };
@@ -103,7 +105,7 @@ int syscall_sendmsg(int s, bco::Buffer buff, const sockaddr_storage& addr)
 #endif // _WIN32
 }
 
-int syscall_recvmsg(int s, bco::Buffer buff, sockaddr_storage& addr, void* func_addr)
+int syscall_recvmsg(int s, bco::Buffer buff, sockaddr_storage& addr, void* recvmsg_func)
 {
     auto slices = buff.data();
 #ifdef _WIN32
@@ -121,7 +123,7 @@ int syscall_recvmsg(int s, bco::Buffer buff, sockaddr_storage& addr, void* func_
         .dwFlags = 0,
     };
     DWORD bytes_read = 0;
-    auto WSARecvMsg = (LPFN_WSARECVMSG)func_addr;
+    auto WSARecvMsg = static_cast<LPFN_WSARECVMSG>(recvmsg_func);
     int ret = WSARecvMsg(s, &wsamsg, &bytes_read, nullptr, nullptr);
     if (ret != 0) {
         return SOCKET_ERROR;

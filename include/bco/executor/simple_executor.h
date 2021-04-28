@@ -27,6 +27,7 @@ private:
     void wake_up();
     inline std::deque<PriorityTask> get_pending_tasks();
     inline std::tuple<std::vector<PriorityTask>, std::chrono::microseconds> get_timeup_delay_tasks();
+    inline std::vector<PriorityTask> get_proactor_tasks();
 
 private:
     std::function<std::vector<PriorityTask>()> get_proactor_task_;

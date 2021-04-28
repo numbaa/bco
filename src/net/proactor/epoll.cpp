@@ -75,7 +75,7 @@ int Epoll::recv(int s, bco::Buffer buff, std::function<void(int)> cb)
     return 0;
 }
 
-int Epoll::recvfrom(int s, bco::Buffer buff, std::function<void(int, const sockaddr_storage&)> cb)
+int Epoll::recvfrom(int s, bco::Buffer buff, std::function<void(int, const sockaddr_storage&)> cb, void*)
 {
     std::lock_guard lock { mtx_ };
     auto it = pending_tasks_.find(s);

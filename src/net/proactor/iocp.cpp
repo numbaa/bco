@@ -106,7 +106,7 @@ int IOCP::recv(int s, bco::Buffer buff, std::function<void(int)> cb)
     return 0;
 }
 
-int IOCP::recvfrom(int s, bco::Buffer buff, std::function<void(int, const sockaddr_storage&)> cb)
+int IOCP::recvfrom(int s, bco::Buffer buff, std::function<void(int, const sockaddr_storage&)> cb, void*)
 {
     RecvfromOverlapInfo* overlap_info = new RecvfromOverlapInfo;
     overlap_info->action = OverlapAction::Recvfrom;
@@ -161,7 +161,7 @@ int IOCP::send(int s, bco::Buffer buff)
         return bytes;
 }
 
-int IOCP::sendto(int s, bco::Buffer buff, const sockaddr_storage& addr)
+int IOCP::sendto(int s, bco::Buffer buff, const sockaddr_storage& addr, void*)
 {
     int bytes = syscall_sendmsg(s, buff, addr);
     if (bytes == -1)

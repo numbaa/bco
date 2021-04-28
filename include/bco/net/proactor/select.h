@@ -37,6 +37,9 @@ class Select : public ProactorInterface {
         bco::Buffer buff;
         std::function<void(int)> cb;
         std::function<void(int, const sockaddr_storage&)> cb2;
+        #ifdef _WIN32
+        void* recvmsg_func;
+        #endif
         SelectTask() = default;
         SelectTask(int _fd, Action _action, bco::Buffer _buff, std::function<void(int)> _cb);
         SelectTask(int _fd, Action _action, bco::Buffer _buff, std::function<void(int, const sockaddr_storage&)> _cb);
@@ -54,12 +57,12 @@ public:
 
     int recv(int s, bco::Buffer buff, std::function<void(int)> cb);
 
-    int recvfrom(int s, bco::Buffer buff, std::function<void(int, const sockaddr_storage&)> cb);
+    int recvfrom(int s, bco::Buffer buff, std::function<void(int, const sockaddr_storage&)> cb, void* optdata = nullptr);
 
     int send(int s, bco::Buffer buff, std::function<void(int)> cb);
     int send(int s, bco::Buffer buff);
 
-    int sendto(int s, bco::Buffer buff, const sockaddr_storage& addr);
+    int sendto(int s, bco::Buffer buff, const sockaddr_storage& addr, void* optdata = nullptr);
 
     int accept(int s, std::function<void(int, const sockaddr_storage&)> cb);
 

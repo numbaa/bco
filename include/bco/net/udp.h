@@ -10,19 +10,28 @@ namespace net {
 namespace detail {
 #ifdef WIN32
 template <typename T>
-class RecvMsgFunc {
+class WinSpecFunc {
 protected:
     void set_recvmsg_func(void*) {}
+    void set_sendmsg_func(void*) {}
+    void* get_recvmsg_func() { return nullptr; }
+    void* get_sendmsg_func() { return nullptr; }
 };
 template <>
-class RecvMsgFunc<Select> {
+class WinSpecFunc<Select> {
 protected:
     void set_recvmsg_func(void* func) { recvmsg_func_ = func; }
+    void set_sendmsg_func(void* func) { sendmsg_func_ = func; }
+    void* get_recvmsg_func() { return recvmsg_func_; }
+    void* get_sendmsg_func() { return sendmsg_func_; }
+
+private:
     void* recvmsg_func_;
+    void* sendmsg_func_;
 };
 #else
 template <typename T>
-class RecvMsgFunc {
+class WinSpecFunc {
 protected:
     void set_recvmsg_func(void*) {}
 };
@@ -30,7 +39,7 @@ protected:
 } // namespace detail
 
 template <SocketProactor P>
-class UdpSocket : public detail::RecvMsgFunc<P> {
+class UdpSocket : public detail::WinSpecFunc<P> {
 public:
     static std::tuple<UdpSocket, int> create(P* proactor, int family);
 
@@ -44,6 +53,10 @@ public:
     int sendto(bco::Buffer, const Address& addr);
     int bind(const Address& addr);
     void close();
+
+private:
+    [[nodiscard]] Task<std::tuple<int, Address>> recvfrom_normal(bco::Buffer buffer);
+    [[nodiscard]] Task<std::tuple<int, Address>> recvfrom_win(bco::Buffer buffer);
 
 private:
     P* proactor_;

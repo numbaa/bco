@@ -57,12 +57,12 @@ public:
 
     int recv(int s, bco::Buffer buff, std::function<void(int)> cb);
 
-    int recvfrom(int s, bco::Buffer buff, std::function<void(int, const sockaddr_storage&)> cb);
+    int recvfrom(int s, bco::Buffer buff, std::function<void(int, const sockaddr_storage&)> cb, void* optdata = nullptr);
 
     int send(int s, bco::Buffer buff, std::function<void(int)> cb);
     int send(int s, bco::Buffer buff);
 
-    int sendto(int s, bco::Buffer buff, const sockaddr_storage& addr);
+    int sendto(int s, bco::Buffer buff, const sockaddr_storage& addr, void* optdata = nullptr);
 
     int accept(int listen_fd, std::function<void(int, const sockaddr_storage&)> cb);
 

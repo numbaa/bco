@@ -18,7 +18,7 @@ namespace net {
 
 template <typename T>
 concept SocketProactor = bco::Proactor<T>&& requires(T p, int fd, int domain, int type, uint32_t timeout_ms,
-    const sockaddr_storage& addr, bco::Buffer buff,
+    const sockaddr_storage& addr, bco::Buffer buff, void* optdata,
     std::function<void(int)> cb, int backlog,
     std::function<void(int, const sockaddr_storage&)> cb2)
 {
@@ -28,7 +28,7 @@ concept SocketProactor = bco::Proactor<T>&& requires(T p, int fd, int domain, in
     ->std::same_as<int>;
 
     {
-        p.recvfrom(fd, buff, cb2)
+        p.recvfrom(fd, buff, cb2, optdata)
     }
     ->std::same_as<int>;
 
@@ -43,7 +43,7 @@ concept SocketProactor = bco::Proactor<T>&& requires(T p, int fd, int domain, in
     ->std::same_as<int>;
 
     {
-        p.sendto(fd, buff, addr)
+        p.sendto(fd, buff, addr, optdata)
     }
     ->std::same_as<int>;
 

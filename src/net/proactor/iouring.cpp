@@ -185,7 +185,7 @@ int IOUring::recv(int s, bco::Buffer buff, std::function<void(int)> cb)
     pending_tasks_.emplace(id, UringTask { id, s, Action::Recv, buff, cb });
 }
 
-int IOUring::recvfrom(int s, bco::Buffer buff, std::function<void(int, const sockaddr_storage&)> cb)
+int IOUring::recvfrom(int s, bco::Buffer buff, std::function<void(int, const sockaddr_storage&)> cb, void*)
 {
     uint64_t id = lastest_task_id_.fetch_add(1);
     std::lock_guard lock { mutex_ };
@@ -210,7 +210,7 @@ int IOUring::send(int s, bco::Buffer buff)
 }
 
 //需不需要加入iouring??
-int IOUring::sendto(int s, bco::Buffer buff, const sockaddr_storage& addr)
+int IOUring::sendto(int s, bco::Buffer buff, const sockaddr_storage& addr, void*)
 {
     int bytes = syscall_sendmsg(s, buff, addr);
     if (bytes == -1)
