@@ -63,14 +63,14 @@ inline void read_little_endian(const uint8_t* buff, T& value)
     }
 }
 
-inline in_addr to_ipv4(const std::string& str)
+inline in_addr to_in_addr(const std::string& str)
 {
     in_addr addr {};
     inet_pton(AF_INET, str.c_str(), &addr);
     return addr;
 }
 
-inline in6_addr to_ipv6(const std::string& str)
+inline in6_addr to_in6_addr(const std::string& str)
 {
     in6_addr addr {};
     inet_pton(AF_INET6, str.c_str(), &addr);

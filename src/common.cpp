@@ -72,7 +72,7 @@ int syscall_sendmsg(int s, bco::Buffer buff, const sockaddr_storage& addr, void*
     }
     WSAMSG wsamsg {
         .name = const_cast<sockaddr*>(reinterpret_cast<const sockaddr*>(&addr)),
-        .namelen = sizeof(addr),
+        .namelen = addr.ss_family == AF_INET ? sizeof(sockaddr_in) : sizeof(sockaddr_in6),
         .lpBuffers = wsabuf.data(),
         .dwBufferCount = static_cast<ULONG>(wsabuf.size()),
         .Control = WSABUF {},

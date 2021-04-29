@@ -59,6 +59,7 @@ public:
     bool is_private_network() const;
     bool is_shared_network() const;
 
+    sockaddr_storage& to_storage(sockaddr_storage& storage) const;
     sockaddr_storage to_storage() const;
     static Address from_storage(const sockaddr_storage& storage);
 

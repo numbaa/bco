@@ -130,7 +130,7 @@ inline void* get_recvmsg_func(int s)
 inline void* get_sendmsg_func(int s)
 {
     GUID WSASendMsg_GUID = WSAID_WSASENDMSG;
-    LPFN_WSARECVMSG WSASendMsg;
+    LPFN_WSASENDMSG WSASendMsg;
     DWORD NumberOfBytes;
     int ret = ::WSAIoctl(s, SIO_GET_EXTENSION_FUNCTION_POINTER,
         &WSASendMsg_GUID, sizeof(WSASendMsg_GUID),

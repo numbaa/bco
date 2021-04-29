@@ -27,7 +27,7 @@ public:
             sockaddr_in server_addr {};
             server_addr.sin_family = AF_INET;
             server_addr.sin_port = ::htons(shared_this->listen_port_);
-            server_addr.sin_addr = bco::to_ipv4("0.0.0.0");
+            server_addr.sin_addr = bco::to_in_addr("0.0.0.0");
 
             int ret = socket.bind(bco::net::Address { server_addr });
             if (ret != 0) {

@@ -91,7 +91,8 @@ template <SocketProactor P>
 Task<int> TcpSocket<P>::connect(const Address& addr)
 {
     Task<int> task;
-    int ret = proactor_->connect(socket_, addr.to_storage(), [task](int ret) mutable {
+    sockaddr_storage storage {};
+    int ret = proactor_->connect(socket_, addr.to_storage(storage), [task](int ret) mutable {
         if (ret == 0) {
             task.set_result(0);
         } else if (ret < 0) {
@@ -116,8 +117,8 @@ int TcpSocket<P>::listen(int backlog)
 template <SocketProactor P>
 int TcpSocket<P>::bind(const Address& addr)
 {
-    auto storage = addr.to_storage();
-    return bind_socket(socket_, storage);
+    sockaddr_storage storage {};
+    return bind_socket(socket_, addr.to_storage(storage));
 }
 
 template <SocketProactor P>

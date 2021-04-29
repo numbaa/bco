@@ -16,7 +16,7 @@ namespace bco {
 namespace net {
 
 IPv4::IPv4(const std::string& ipstr)
-    : ip_ { to_ipv4(ipstr) }
+    : ip_ { bco::to_in_addr(ipstr) }
 {
 }
 
@@ -26,7 +26,7 @@ in_addr IPv4::to_in_addr() const
 }
 
 IPv6::IPv6(const std::string& ipstr)
-    : ip_ { to_ipv6(ipstr) }
+    : ip_ { bco::to_in6_addr(ipstr) }
 {
 }
 
@@ -166,9 +166,8 @@ bool Address::is_shared_network() const
     return (ip >> 22) == ((100 << 2) | 1);
 }
 
-sockaddr_storage Address::to_storage() const
+sockaddr_storage& Address::to_storage(sockaddr_storage& storage) const
 {
-    sockaddr_storage storage {};
     if (family_ == AF_INET) {
         sockaddr_in* addr = reinterpret_cast<sockaddr_in*>(&storage);
         addr->sin_family = AF_INET;
@@ -181,6 +180,12 @@ sockaddr_storage Address::to_storage() const
         addr->sin6_addr = ip_.v6;
     }
     return storage;
+}
+
+sockaddr_storage Address::to_storage() const
+{
+    sockaddr_storage storage{};
+    return to_storage(storage);
 }
 
 Address Address::from_storage(const sockaddr_storage& storage)

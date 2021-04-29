@@ -123,25 +123,26 @@ int UdpSocket<P>::send(bco::Buffer buffer)
 template <SocketProactor P>
 int UdpSocket<P>::sendto(bco::Buffer buffer, const Address& addr)
 {
+    sockaddr_storage storage {};
     if constexpr (std::is_same<P, Select>::value) {
-        return proactor_->sendto(socket_, buffer, addr.to_storage(), UdpSocket<P>::get_sendmsg_func());
+        return proactor_->sendto(socket_, buffer, addr.to_storage(storage), UdpSocket<P>::get_sendmsg_func());
     } else {
-        return proactor_->sendto(socket_, buffer, addr.to_storage());
+        return proactor_->sendto(socket_, buffer, addr.to_storage(storage));
     }
 }
 
 template <SocketProactor P>
 int UdpSocket<P>::bind(const Address& addr)
 {
-    auto storage = addr.to_storage();
-    return bind_socket(socket_, storage);
+    sockaddr_storage storage {};
+    return bind_socket(socket_, addr.to_storage(storage));
 }
 
 template <SocketProactor P>
 int UdpSocket<P>::connect(const Address& addr)
 {
-    auto storage = addr.to_storage();
-    return proactor_->connect(socket_, storage);
+    sockaddr_storage storage {};
+    return proactor_->connect(socket_, addr.to_storage(storage));
 }
 
 template <SocketProactor P>
