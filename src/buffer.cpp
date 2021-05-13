@@ -158,7 +158,7 @@ std::vector<std::span<uint8_t>> BufferBase::data(size_t start, size_t end)
             ;
         } else if (curr_pos < start && curr_pos + chunk.size() > start) {
             //比较 end 和 curr_pos + chunk.size()的大小，取小的
-            slices.emplace_back(chunk.data() + start - curr_pos, start - curr_pos);
+            slices.emplace_back(chunk.data() + start - curr_pos, std::min(end - start, chunk.size() - start));
         } else if (curr_pos > start && curr_pos + chunk.size() <= end) {
             slices.emplace_back(chunk.data(), chunk.size());
         } else if (curr_pos > start && curr_pos + chunk.size() > end) {
@@ -244,9 +244,9 @@ bool Buffer::is_subbuf() const
     return not(start_ == 0 && end_ == std::numeric_limits<decltype(end_)>::max());
 }
 
-Buffer Buffer::subbuf(size_t start, size_t end)
+Buffer Buffer::subbuf(size_t start, size_t count)
 {
-    return Buffer { start, end, base_ };
+    return Buffer { start, start + count, base_ };
 }
 
 void Buffer::push_back(const std::span<uint8_t> data, bool new_slice)

@@ -51,7 +51,7 @@ public:
     Buffer(std::vector<uint8_t>&& data);
     size_t size() const;
     bool is_subbuf() const;
-    Buffer subbuf(size_t start, size_t end);
+    Buffer subbuf(size_t start, size_t count);
     void push_back(const std::span<uint8_t> data, bool new_slice = false);
     void push_back(std::vector<uint8_t>&& data, bool new_slice = false);
     void insert(size_t index, const std::span<uint8_t> data);
