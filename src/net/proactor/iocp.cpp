@@ -289,7 +289,7 @@ void IOCP::handle_overlap_success(WSAOVERLAPPED* overlapped, int bytes)
         }
         {
             std::lock_guard lock { mtx_ };
-            completed_tasks_.push_back(PriorityTask { 0, std::bind(accept_info->cb2, overlap_info->sock, addr) });
+            completed_tasks_.push_back(PriorityTask { Priority::Medium, std::bind(accept_info->cb2, overlap_info->sock, addr) });
         }
         delete accept_info;
         break;
@@ -297,7 +297,7 @@ void IOCP::handle_overlap_success(WSAOVERLAPPED* overlapped, int bytes)
     case OverlapAction::Recv:
     case OverlapAction::Send: {
         std::lock_guard lock { mtx_ };
-        completed_tasks_.push_back(PriorityTask { 0, std::bind(overlap_info->cb, bytes) });
+        completed_tasks_.push_back(PriorityTask { Priority::Medium, std::bind(overlap_info->cb, bytes) });
     }
         delete overlap_info;
         break;
@@ -305,14 +305,14 @@ void IOCP::handle_overlap_success(WSAOVERLAPPED* overlapped, int bytes)
         RecvfromOverlapInfo* rf_info = reinterpret_cast<RecvfromOverlapInfo*>(overlapped);
         {
             std::lock_guard lock { mtx_ };
-            completed_tasks_.push_back(PriorityTask { 0, std::bind(rf_info->cb2, bytes, rf_info->addr) });
+            completed_tasks_.push_back(PriorityTask { Priority::Medium, std::bind(rf_info->cb2, bytes, rf_info->addr) });
         }
         delete rf_info;
         break;
     }
     case OverlapAction::Connect: {
         std::lock_guard lock { mtx_ };
-        completed_tasks_.push_back(PriorityTask { 0, std::bind(overlap_info->cb, bytes) });
+        completed_tasks_.push_back(PriorityTask { Priority::Medium, std::bind(overlap_info->cb, bytes) });
     }
         delete overlap_info;
         break;

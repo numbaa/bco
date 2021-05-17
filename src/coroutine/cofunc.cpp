@@ -13,7 +13,7 @@ void SwitchTask::await_suspend(std::coroutine_handle<> coroutine) noexcept
 {
     ctx_->caller_coroutine_ = coroutine;
     executor_->post(PriorityTask {
-        1,
+        Priority::Medium,
         std::bind(&SwitchTask::resume, this) });
 }
 
@@ -28,7 +28,7 @@ DelayTask::DelayTask(std::chrono::milliseconds duration)
         get_current_executor()->post_delay(
             std::chrono::duration_cast<std::chrono::milliseconds>(duration_),
             PriorityTask {
-                1,
+                Priority::Medium,
                 std::bind(&DelayTask::resume, this) });
     }
 

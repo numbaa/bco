@@ -83,9 +83,11 @@ private:
     void on_io_event(const std::map<int, SelectTask>& tasks, const fd_set& fds);
     std::tuple<std::map<int, SelectTask>, std::map<int, SelectTask>> get_pending_io();
     static void prepare_fd_set(const std::map<int, SelectTask>& tasks, fd_set& fds);
+    void wake();
 
 private:
     Event stop_event_;
+    Event wakeup_event_;
     std::mutex mtx_;
     int max_rfd_ {};
     int max_wfd_ {};
@@ -99,6 +101,7 @@ private:
     ExecutorInterface* io_executor_;
     std::unique_ptr<ExecutorInterface> io_executor_holder_;
     timeval timeout_;
+    std::atomic<bool> polling_ { false };
 };
 
 } // namespace net

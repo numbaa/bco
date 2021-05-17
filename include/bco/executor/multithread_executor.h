@@ -28,6 +28,7 @@ public:
     bool is_current_executor() override;
     void set_context(std::weak_ptr<Context> ctx) override;
     void wake() override;
+    bool is_running() override;
 
 private:
     void main_loop();

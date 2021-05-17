@@ -5,8 +5,18 @@
 
 namespace bco {
 
+enum class Priority : uint32_t {
+    Low,
+    Medium,
+    High,
+};
+inline bool operator<(const Priority& left, const Priority& right)
+{
+    return static_cast<std::underlying_type_t<Priority>>(left) < static_cast<std::underlying_type_t<Priority>>(right);
+}
+
 struct PriorityTask {
-    int priority;
+    Priority priority;
     std::function<void()> task;
     void operator()() { task(); }
 };

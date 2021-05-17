@@ -161,7 +161,7 @@ void IOUring::start(ExecutorInterface* executor)
 {
     executor_ = executor;
     executor_->post(bco::PriorityTask {
-        .priority = 1,
+        .priority = Priority::Medium,
         .task = std::bind(&IOUring::do_io, this) });
 }
 
@@ -258,7 +258,7 @@ void IOUring::do_io()
     submit_tasks(pending_tasks);
     handle_complete_tasks(); //有必要么
     using namespace std::chrono_literals;
-    executor_->post_delay(1ms, bco::PriorityTask { .priority = 1, .task = std::bind(&IOUring::do_io, this) });
+    executor_->post_delay(1ms, bco::PriorityTask { .priority = Priority::Medium, .task = std::bind(&IOUring::do_io, this) });
 }
 
 std::map<uint64_t, IOUring::UringTask> IOUring::get_pending_tasks()
@@ -382,11 +382,11 @@ void IOUring::handle_complete_task(uint64_t id, const io_uring_cqe* cqe)
     case Action::Recv:
     case Action::Send:
     case Action::Connect:
-        completed_task_.push_back(PriorityTask { 0, std::bind(task->second.cb, cqe->res) });
+        completed_task_.push_back(PriorityTask { Priority::Medium, std::bind(task->second.cb, cqe->res) });
         break;
     case Action::Recvfrom:
     case Action::Accept:
-        completed_task_.push_back(PriorityTask { 0, std::bind(task->second.cb2, cqe->res, task->second.addr.value()) });
+        completed_task_.push_back(PriorityTask { Priority::Medium, std::bind(task->second.cb2, cqe->res, task->second.addr.value()) });
         break;
     default:
         break;

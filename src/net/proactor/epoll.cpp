@@ -46,7 +46,7 @@ void Epoll::start(ExecutorInterface* executor)
 {
     io_executor_ = executor;
     io_executor_->post(bco::PriorityTask {
-        .priority = 4,
+        .priority = Priority::Medium,
         .task = std::bind(&Epoll::do_io, this) });
 }
 
@@ -209,7 +209,7 @@ void Epoll::do_io()
         on_io_event(events[i]);
     }
     using namespace std::chrono_literals;
-    io_executor_->post_delay(1ms, bco::PriorityTask { .priority = 4, .task = std::bind(&Epoll::do_io, this) });
+    io_executor_->post_delay(1ms, bco::PriorityTask { .priority = Priority::Medium, .task = std::bind(&Epoll::do_io, this) });
 }
 
 int Epoll::send_sync(int s, bco::Buffer buff, std::function<void(int)> cb)
@@ -289,7 +289,7 @@ void Epoll::do_send(EpollTask& task)
             //completed_task_.push_back();
             return;
         }
-        completed_task_.push_back(PriorityTask { 0, std::bind(ioitem.cb, bytes) });
+        completed_task_.push_back(PriorityTask { Priority::Medium, std::bind(ioitem.cb, bytes) });
     }
 }
 
@@ -310,7 +310,7 @@ void Epoll::do_accept(EpollTask& task)
             //completed_task_.push_back();
             return;
         }
-        completed_task_.push_back(PriorityTask { 0, std::bind(ioitem.cb, fd) });
+        completed_task_.push_back(PriorityTask { Priority::Medium, std::bind(ioitem.cb, fd) });
     }
 }
 
@@ -325,7 +325,7 @@ void Epoll::on_connected(EpollTask& task)
         //completed_task_.push_back();
         return;
     }
-    completed_task_.push_back(PriorityTask { 0, std::bind(task.write.value().cb, static_cast<int>(task.event.data.fd)) });
+    completed_task_.push_back(PriorityTask { Priority::Medium, std::bind(task.write.value().cb, static_cast<int>(task.event.data.fd)) });
 }
 
 void Epoll::do_recv(EpollTask& task)
@@ -342,7 +342,7 @@ void Epoll::do_recv(EpollTask& task)
             //completed_task_.push_back();
             return;
         }
-        completed_task_.push_back(PriorityTask { 0, std::bind(ioitem.cb, bytes) });
+        completed_task_.push_back(PriorityTask { Priority::Medium, std::bind(ioitem.cb, bytes) });
     }
 }
 
@@ -362,7 +362,7 @@ void Epoll::do_recvfrom(EpollTask& task)
             //completed_task_.push_back();
             return;
         }
-        completed_task_.push_back(PriorityTask { 0, std::bind(ioitem.cb2, bytes, addr) });
+        completed_task_.push_back(PriorityTask { Priority::Medium, std::bind(ioitem.cb2, bytes, addr) });
     }
 }
 

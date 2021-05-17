@@ -38,7 +38,7 @@ void Context::start()
 
 void Context::spawn(std::function<Routine()>&& coroutine)
 {
-    executor_->post(PriorityTask { 0, std::bind(&Context::spawn_aux, this, coroutine) });
+    executor_->post(PriorityTask { Priority::Medium, std::bind(&Context::spawn_aux, this, coroutine) });
 }
 
 void Context::add_routine(Routine routine)

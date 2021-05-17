@@ -53,8 +53,8 @@ void SimpleExecutor::do_start()
 
         if (old_tasks.empty() && delay_tasks.empty() && proactor_tasks.empty()) {
             std::unique_lock lock { mutex_ };
-            wakeup_ = false;
-            sleep_cv_.wait_for(lock, sleep_for, [this]() { return wakeup_; });
+            wakeup_.store(false, std::memory_order::relaxed);
+            sleep_cv_.wait_for(lock, sleep_for, [this]() { return wakeup_.load(std::memory_order::relaxed); });
             continue;
         }
 
@@ -128,6 +128,11 @@ void SimpleExecutor::set_context(std::weak_ptr<Context> ctx)
 void SimpleExecutor::wake()
 {
     wake_up();
+}
+
+bool SimpleExecutor::is_running()
+{
+    return wakeup_.load(std::memory_order::relaxed);
 }
 
 } //namespace bco

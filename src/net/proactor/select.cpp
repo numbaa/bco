@@ -27,8 +27,9 @@ Select::SelectTask::SelectTask(int _fd, Action _action, bco::Buffer _buff, std::
 
 Select::Select()
 {
-    max_rfd_ = std::max(stop_event_.fd(), max_rfd_);
+    max_rfd_ = std::max(stop_event_.fd(), wakeup_event_.fd());
     pending_rfds_[stop_event_.fd()] = SelectTask { stop_event_.fd(), Action::Recv, bco::Buffer {}, std::function<void(int)> {} };
+    pending_rfds_[wakeup_event_.fd()] = SelectTask { wakeup_event_.fd(), Action::Recv, bco::Buffer {}, std::function<void(int)> {} };
 }
 
 Select::~Select()
@@ -49,7 +50,7 @@ void Select::start(ExecutorInterface* executor)
     timeout_ = timeval {};
     io_executor_ = executor;
     io_executor_->post(bco::PriorityTask {
-        .priority = 1,
+        .priority = Priority::Medium,
         .task = std::bind(&Select::do_io, this) });
 }
 
@@ -194,6 +195,9 @@ int Select::accept(int s, std::function<void(int, const sockaddr_storage&)> cb)
 void Select::on_io_event(const std::map<int, SelectTask>& tasks, const fd_set& fds)
 {
     for (auto& task : tasks) {
+        if (task.first == wakeup_event_.fd()) {
+            continue;
+        }
         if (FD_ISSET(task.first, &fds)) {
             switch (task.second.action) {
             case Action::Accept:
@@ -241,22 +245,29 @@ void Select::do_io()
     FD_ZERO(&wfds);
     prepare_fd_set(reading_fds, rfds);
     prepare_fd_set(writing_fds, wfds);
-    timeval timeout {0, 1};
-    int ret = ::select(std::max(max_rfd_, max_wfd_) + 1, &rfds, &wfds, nullptr, &timeout);
+
+    polling_.store(true, std::memory_order::relaxed);
+    int ret = ::select(std::max(max_rfd_, max_wfd_) + 1, &rfds, &wfds, nullptr, &timeout_);
+    polling_.store(false, std::memory_order::relaxed);
     if (ret < 0) {
         // TODO: error handling
     } else {
         if (FD_ISSET(stop_event_.fd(), &rfds)) {
             return;
         }
+        if (FD_ISSET(wakeup_event_.fd(), &rfds)) {
+            wakeup_event_.reset();
+        }
         on_io_event(reading_fds, rfds);
         on_io_event(writing_fds, wfds);
     }
-    using namespace std::chrono_literals;
-    if (timeout_ == timeval{}) {
-        //
+
+    if (timeout_.tv_sec == 0 && timeout_.tv_usec == 0) {
+        using namespace std::chrono_literals;
+        io_executor_->post_delay(1ms, bco::PriorityTask { .priority = Priority::Medium, .task = std::bind(&Select::do_io, this) });
+    } else {
+        io_executor_->post(bco::PriorityTask { .priority = Priority::Medium, .task = std::bind(&Select::do_io, this) });
     }
-    io_executor_->post(bco::PriorityTask { .priority = 4, .task = std::bind(&Select::do_io, this) });
 }
 
 void Select::do_accept(const SelectTask& task)
@@ -268,7 +279,7 @@ void Select::do_accept(const SelectTask& task)
         set_non_block(static_cast<int>(fd));
         std::lock_guard lock { mtx_ };
         pending_rfds_.erase(task.fd);
-        completed_task_.push_back(PriorityTask { 0, std::bind(task.cb2, static_cast<int>(fd), addr) });
+        completed_task_.push_back(PriorityTask { Priority::Medium, std::bind(task.cb2, static_cast<int>(fd), addr) });
         return;
     }
     //do nothing, it will try again
@@ -280,7 +291,7 @@ void Select::do_recv(const SelectTask& task)
     if (bytes >= 0 || (last_error() != EAGAIN && last_error() != EWOULDBLOCK)) {
         std::lock_guard lock { mtx_ };
         pending_rfds_.erase(task.fd);
-        completed_task_.push_back(PriorityTask { 0, std::bind(task.cb, bytes) });
+        completed_task_.push_back(PriorityTask { Priority::Medium, std::bind(task.cb, bytes) });
         return;
     }
     //do nothing, it will try again
@@ -293,7 +304,7 @@ void Select::do_recvfrom(const SelectTask& task)
     if (bytes >= 0 || (last_error() != EAGAIN && last_error() != EWOULDBLOCK)) {
         std::lock_guard lock { mtx_ };
         pending_rfds_.erase(task.fd);
-        completed_task_.push_back(PriorityTask { 0, std::bind(task.cb2, bytes, addr) });
+        completed_task_.push_back(PriorityTask { Priority::Medium, std::bind(task.cb2, bytes, addr) });
         return;
     }
 }
@@ -304,7 +315,7 @@ void Select::do_send(const SelectTask& task)
     if (bytes >= 0 || (last_error() != EAGAIN && last_error() != EWOULDBLOCK)) {
         std::lock_guard lock { mtx_ };
         pending_wfds_.erase(task.fd);
-        completed_task_.push_back(PriorityTask { 0, std::bind(task.cb, bytes) });
+        completed_task_.push_back(PriorityTask { Priority::Medium, std::bind(task.cb, bytes) });
         return;
     }
     //do nothing, it will try again
@@ -314,13 +325,27 @@ void Select::on_connected(const SelectTask& task)
 {
     std::lock_guard lock { mtx_ };
     pending_wfds_.erase(task.fd);
-    completed_task_.push_back(PriorityTask { 0, std::bind(task.cb, task.fd) });
+    completed_task_.push_back(PriorityTask { Priority::Medium, std::bind(task.cb, task.fd) });
 }
 
 std::vector<PriorityTask> Select::harvest()
 {
     std::lock_guard lock { mtx_ };
     return std::move(completed_task_);
+}
+
+void Select::wake()
+{
+    if (io_executor_->is_current_executor()) {
+        return;
+    }
+    if (not io_executor_->is_running()) {
+        io_executor_->wake();
+        return;
+    }
+    if (polling_.load(std::memory_order::relaxed)) {
+        wakeup_event_.emit();
+    }
 }
 
 } // namespace net

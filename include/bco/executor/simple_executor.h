@@ -22,6 +22,7 @@ public:
     bool is_current_executor();
     void set_context(std::weak_ptr<Context> ctx) override;
     void wake() override;
+    bool is_running() override;
 
 private:
     void do_start();
@@ -36,7 +37,7 @@ private:
     std::priority_queue<PriorityDelayTask> delay_tasks_;
     std::mutex mutex_;
     std::condition_variable sleep_cv_;
-    bool wakeup_ = true;
+    std::atomic<bool> wakeup_ { true };
     std::mutex startup_mtx_;
     std::condition_variable startup_cv_;
     std::thread thread_;

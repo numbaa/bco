@@ -18,6 +18,7 @@ public:
     virtual bool is_current_executor() = 0;
     virtual void set_context(std::weak_ptr<Context> ctx) = 0;
     virtual void wake() = 0;
+    virtual bool is_running() = 0;
 };
 
 } // namespace bco

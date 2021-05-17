@@ -64,6 +64,11 @@ void MultithreadExecutor::wake()
     cv_.notify_one();
 }
 
+bool MultithreadExecutor::is_running()
+{
+    return !stoped_;
+}
+
 void MultithreadExecutor::main_loop()
 {
     wg_.done();
