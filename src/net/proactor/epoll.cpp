@@ -366,7 +366,7 @@ void Epoll::do_recvfrom(EpollTask& task)
     }
 }
 
-std::vector<PriorityTask> Epoll::harvest_completed_tasks()
+std::vector<PriorityTask> Epoll::harvest()
 {
     std::lock_guard lock { mtx_ };
     return std::move(completed_task_);

@@ -46,6 +46,7 @@ int Select::create(int domain, int type)
 
 void Select::start(ExecutorInterface* executor)
 {
+    timeout_ = timeval {};
     io_executor_ = executor;
     io_executor_->post(bco::PriorityTask {
         .priority = 1,
@@ -54,6 +55,7 @@ void Select::start(ExecutorInterface* executor)
 
 void Select::start(std::unique_ptr<ExecutorInterface>&& executor)
 {
+    timeout_ = timeval { 0, 5 };
     io_executor_holder_ = std::move(executor);
     start(io_executor_holder_.get());
     io_executor_holder_->start();
@@ -66,25 +68,31 @@ void Select::stop()
 
 int Select::recv(int s, bco::Buffer buff, std::function<void(int length)> cb)
 {
-    std::lock_guard lock { mtx_ };
-    if (s > max_rfd_)
-        max_rfd_ = s;
-    pending_rfds_[s] = SelectTask { s, Action::Recv, buff, cb };
+    {
+        std::lock_guard lock { mtx_ };
+        if (s > max_rfd_)
+            max_rfd_ = s;
+        pending_rfds_[s] = SelectTask { s, Action::Recv, buff, cb };
+    }
+    io_executor_->wake();
     return 0;
 }
 
 int Select::recvfrom(int s, bco::Buffer buff, std::function<void(int, const sockaddr_storage&)> cb, void* optdata)
 {
-    std::lock_guard lock { mtx_ };
-    if (s > max_rfd_)
-        max_rfd_ = s;
+    {
+        std::lock_guard lock { mtx_ };
+        if (s > max_rfd_)
+            max_rfd_ = s;
 #ifdef _WIN32
-    auto stask = SelectTask { s, Action::Recvfrom, buff, cb };
-    stask.recvmsg_func = optdata;
-    pending_rfds_[s] = stask;
+        auto stask = SelectTask { s, Action::Recvfrom, buff, cb };
+        stask.recvmsg_func = optdata;
+        pending_rfds_[s] = stask;
 #else
-    pending_rfds_[s] = SelectTask { s, Action::Recvfrom, buff, cb };
+        pending_rfds_[s] = SelectTask { s, Action::Recvfrom, buff, cb };
 #endif // _WIN32
+    }
+    io_executor_->wake();
     return 0;
 }
 
@@ -111,10 +119,13 @@ int Select::send_sync(int s, bco::Buffer buff, std::function<void(int)> cb)
 
 int Select::send_async(int s, bco::Buffer buff, std::function<void(int)> cb)
 {
-    std::lock_guard lock { mtx_ };
-    if (s > max_wfd_)
-        max_wfd_ = s;
-    pending_wfds_[s] = SelectTask { s, Action::Send, buff, cb };
+    {
+        std::lock_guard lock { mtx_ };
+        if (s > max_wfd_)
+            max_wfd_ = s;
+        pending_wfds_[s] = SelectTask { s, Action::Send, buff, cb };
+    }
+    io_executor_->wake();
     return 0;
 }
 
@@ -148,10 +159,13 @@ int Select::connect(int s, const sockaddr_storage& addr, std::function<void(int)
     int error = ::connect(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
     if (error == -1)
         return -last_error();
-    std::lock_guard lock { mtx_ };
-    if (s > max_wfd_)
-        max_wfd_ = s;
-    pending_wfds_[s] = SelectTask { s, Action::Connect, bco::Buffer {}, cb };
+    {
+        std::lock_guard lock { mtx_ };
+        if (s > max_wfd_)
+            max_wfd_ = s;
+        pending_wfds_[s] = SelectTask { s, Action::Connect, bco::Buffer {}, cb };
+    }
+    io_executor_->wake();
     return 0;
 }
 
@@ -167,10 +181,13 @@ int Select::connect(int s, const sockaddr_storage& addr)
 
 int Select::accept(int s, std::function<void(int, const sockaddr_storage&)> cb)
 {
-    std::lock_guard lock { mtx_ };
-    if (s > max_rfd_)
-        max_rfd_ = s;
-    pending_rfds_[s] = SelectTask { s, Action::Accept, bco::Buffer {}, cb };
+    {
+        std::lock_guard lock { mtx_ };
+        if (s > max_rfd_)
+            max_rfd_ = s;
+        pending_rfds_[s] = SelectTask { s, Action::Accept, bco::Buffer {}, cb };
+    }
+    io_executor_->wake();
     return 0;
 }
 
@@ -224,7 +241,7 @@ void Select::do_io()
     FD_ZERO(&wfds);
     prepare_fd_set(reading_fds, rfds);
     prepare_fd_set(writing_fds, wfds);
-    timeval timeout {};
+    timeval timeout {0, 1};
     int ret = ::select(std::max(max_rfd_, max_wfd_) + 1, &rfds, &wfds, nullptr, &timeout);
     if (ret < 0) {
         // TODO: error handling
@@ -236,7 +253,10 @@ void Select::do_io()
         on_io_event(writing_fds, wfds);
     }
     using namespace std::chrono_literals;
-    io_executor_->post_delay(1ms, bco::PriorityTask { .priority = 4, .task = std::bind(&Select::do_io, this) });
+    if (timeout_ == timeval{}) {
+        //
+    }
+    io_executor_->post(bco::PriorityTask { .priority = 4, .task = std::bind(&Select::do_io, this) });
 }
 
 void Select::do_accept(const SelectTask& task)
@@ -297,7 +317,7 @@ void Select::on_connected(const SelectTask& task)
     completed_task_.push_back(PriorityTask { 0, std::bind(task.cb, task.fd) });
 }
 
-std::vector<PriorityTask> Select::harvest_completed_tasks()
+std::vector<PriorityTask> Select::harvest()
 {
     std::lock_guard lock { mtx_ };
     return std::move(completed_task_);

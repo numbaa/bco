@@ -59,6 +59,11 @@ void MultithreadExecutor::set_context(std::weak_ptr<Context> ctx)
     ctx_ = ctx;
 }
 
+void MultithreadExecutor::wake()
+{
+    cv_.notify_one();
+}
+
 void MultithreadExecutor::main_loop()
 {
     wg_.done();

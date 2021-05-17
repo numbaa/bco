@@ -228,7 +228,7 @@ int IOCP::connect(int s, const sockaddr_storage& addr)
     return ::connect(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
 }
 
-std::vector<PriorityTask> net::IOCP::harvest_completed_tasks()
+std::vector<PriorityTask> net::IOCP::harvest()
 {
     std::lock_guard lock { mtx_ };
     return std::move(completed_tasks_);

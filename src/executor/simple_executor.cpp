@@ -125,4 +125,9 @@ void SimpleExecutor::set_context(std::weak_ptr<Context> ctx)
     ctx_ = ctx;
 }
 
+void SimpleExecutor::wake()
+{
+    wake_up();
+}
+
 } //namespace bco

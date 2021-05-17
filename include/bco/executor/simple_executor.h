@@ -21,6 +21,7 @@ public:
     void set_proactor_task_getter(std::function<std::vector<PriorityTask>()> func) override;
     bool is_current_executor();
     void set_context(std::weak_ptr<Context> ctx) override;
+    void wake() override;
 
 private:
     void do_start();

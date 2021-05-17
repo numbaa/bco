@@ -69,7 +69,7 @@ public:
     int connect(int s, const sockaddr_storage& addr, std::function<void(int)> cb);
     int connect(int s, const sockaddr_storage& addr);
 
-    std::vector<PriorityTask> harvest_completed_tasks() override;
+    std::vector<PriorityTask> harvest() override;
 
 private:
     std::map<int, EpollTask> get_pending_tasks();

@@ -243,7 +243,7 @@ int IOUring::connect(int s, const sockaddr_storage& addr)
         return 0;
 }
 
-std::vector<PriorityTask> IOUring::harvest_completed_tasks()
+std::vector<PriorityTask> IOUring::harvest()
 {
     std::lock_guard lock { mutex_ };
     return std::move(completed_task_);
