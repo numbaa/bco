@@ -78,6 +78,7 @@ public:
     {
     }
     void set_result(T&& val) noexcept { ctx_->result_ = std::move(val); }
+    void set_result(const T& val) noexcept { ctx_->result_ = val; }
     bool await_ready() const noexcept { return ctx_->result_.has_value(); }
     void await_suspend(std::coroutine_handle<> coroutine) noexcept
     {

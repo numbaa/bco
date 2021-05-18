@@ -40,8 +40,8 @@ int Select::create(int domain, int type)
 {
     auto fd = ::socket(domain, type, 0);
     if (fd < 0)
-        return static_cast<int>(fd);
-    set_non_block(static_cast<int>(fd));
+        return -last_error();
+    set_non_block(fd);
     return static_cast<int>(fd);
 }
 
@@ -275,23 +275,36 @@ void Select::do_accept(const SelectTask& task)
     sockaddr_storage addr {};
     socklen_t len = sizeof(addr);
     auto fd = ::accept(task.fd, reinterpret_cast<sockaddr*>(&addr), &len);
-    if (fd >= 0 || (last_error() != EAGAIN && last_error() != EWOULDBLOCK)) {
-        set_non_block(static_cast<int>(fd));
+#ifdef _WIN32
+    if (fd != INVALID_SOCKET || (last_error() != WSAECONNRESET && last_error() != WSAEINPROGRESS)) {
+        set_non_block(fd);
         std::lock_guard lock { mtx_ };
         pending_rfds_.erase(task.fd);
-        completed_task_.push_back(PriorityTask { Priority::Medium, std::bind(task.cb2, static_cast<int>(fd), addr) });
+        const int fd_or_errcode = fd != INVALID_SOCKET ? static_cast<int>(fd) : -last_error();
+        completed_task_.push_back(PriorityTask { Priority::Medium, std::bind(task.cb2, fd_or_errcode, addr) });
         return;
     }
+#else
+    if (fd >= 0 || (last_error() != EAGAIN && last_error() != EWOULDBLOCK)) {
+        set_non_block(fd);
+        std::lock_guard lock { mtx_ };
+        pending_rfds_.erase(task.fd);
+        const int fd_or_errcode = fd >= 0 ? fd : -last_error();
+        completed_task_.push_back(PriorityTask { Priority::Medium, std::bind(task.cb2, fd_or_errcode, addr) });
+        return;
+    }
+#endif // _WIN32
     //do nothing, it will try again
 }
 
 void Select::do_recv(const SelectTask& task)
 {
     int bytes = syscall_recvv(task.fd, task.buff);
-    if (bytes >= 0 || (last_error() != EAGAIN && last_error() != EWOULDBLOCK)) {
+    if (bytes >= 0 || !should_try_again()) {
         std::lock_guard lock { mtx_ };
         pending_rfds_.erase(task.fd);
-        completed_task_.push_back(PriorityTask { Priority::Medium, std::bind(task.cb, bytes) });
+        const int bytes_or_errcode = bytes >= 0 ? bytes : -last_error();
+        completed_task_.push_back(PriorityTask { Priority::Medium, std::bind(task.cb, bytes_or_errcode) });
         return;
     }
     //do nothing, it will try again
@@ -301,10 +314,11 @@ void Select::do_recvfrom(const SelectTask& task)
 {
     sockaddr_storage addr;
     int bytes = syscall_recvmsg(task.fd, task.buff, addr, task.recvmsg_func);
-    if (bytes >= 0 || (last_error() != EAGAIN && last_error() != EWOULDBLOCK)) {
+    if (bytes >= 0 || !should_try_again()) {
         std::lock_guard lock { mtx_ };
         pending_rfds_.erase(task.fd);
-        completed_task_.push_back(PriorityTask { Priority::Medium, std::bind(task.cb2, bytes, addr) });
+        const int bytes_or_errcode = bytes >= 0 ? bytes : -last_error();
+        completed_task_.push_back(PriorityTask { Priority::Medium, std::bind(task.cb2, bytes_or_errcode, addr) });
         return;
     }
 }
@@ -312,10 +326,11 @@ void Select::do_recvfrom(const SelectTask& task)
 void Select::do_send(const SelectTask& task)
 {
     int bytes = syscall_sendv(task.fd, task.buff);
-    if (bytes >= 0 || (last_error() != EAGAIN && last_error() != EWOULDBLOCK)) {
+    if (bytes >= 0 || !should_try_again()) {
         std::lock_guard lock { mtx_ };
         pending_wfds_.erase(task.fd);
-        completed_task_.push_back(PriorityTask { Priority::Medium, std::bind(task.cb, bytes) });
+        const int bytes_or_errcode = bytes >= 0 ? bytes : -last_error();
+        completed_task_.push_back(PriorityTask { Priority::Medium, std::bind(task.cb, bytes_or_errcode) });
         return;
     }
     //do nothing, it will try again

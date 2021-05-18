@@ -26,7 +26,7 @@ DelayTask::DelayTask(std::chrono::milliseconds duration)
     {
         ctx_->caller_coroutine_ = coroutine;
         get_current_executor()->post_delay(
-            std::chrono::duration_cast<std::chrono::milliseconds>(duration_),
+            duration_,
             PriorityTask {
                 Priority::Medium,
                 std::bind(&DelayTask::resume, this) });

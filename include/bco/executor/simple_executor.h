@@ -16,7 +16,7 @@ public:
     SimpleExecutor& operator=(SimpleExecutor&) = delete;
     ~SimpleExecutor() override;
     void post(PriorityTask task) override;
-    void post_delay(std::chrono::microseconds duration, PriorityTask task) override;
+    void post_delay(std::chrono::milliseconds duration, PriorityTask task) override;
     void start() override;
     void set_proactor_task_getter(std::function<std::vector<PriorityTask>()> func) override;
     bool is_current_executor();
@@ -28,7 +28,7 @@ private:
     void do_start();
     void wake_up();
     inline std::deque<PriorityTask> get_pending_tasks();
-    inline std::tuple<std::vector<PriorityTask>, std::chrono::microseconds> get_timeup_delay_tasks();
+    inline std::tuple<std::vector<PriorityTask>, std::chrono::milliseconds> get_timeup_delay_tasks();
     inline std::vector<PriorityTask> get_proactor_tasks();
 
 private:

@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "../../common.h"
+#include "bco/exception.h"
 #include <bco/executor.h>
 #include <bco/net/proactor/iocp.h>
 
@@ -37,7 +38,7 @@ enum class OverlapAction {
 struct OverlapInfo {
     WSAOVERLAPPED overlapped;
     OverlapAction action;
-    int sock;
+    SOCKET sock;
     std::function<void(int)> cb;
 };
 
@@ -56,6 +57,9 @@ struct RecvfromOverlapInfo : OverlapInfo {
 IOCP::IOCP()
 {
     this->complete_port_ = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 1);
+    if (this->complete_port_ == nullptr) {
+        throw NetworkException {"Create IOCP failed"};
+    }
 }
 
 IOCP::~IOCP()
@@ -67,8 +71,8 @@ IOCP::~IOCP()
 int IOCP::create(int domain, int type)
 {
     SOCKET fd = ::socket(domain, type, 0);
-    if (fd < 0)
-        return static_cast<int>(fd);
+    if (fd == INVALID_SOCKET)
+        return -last_error();
     ::CreateIoCompletionPort(reinterpret_cast<HANDLE>(fd), complete_port_, NULL, 0);
     return static_cast<int>(fd);
 }
@@ -147,7 +151,7 @@ int IOCP::send(int s, bco::Buffer buff, std::function<void(int length)> cb)
     int ret = ::WSASend(s, wsabuf.data(), static_cast<DWORD>(wsabuf.size()), &bytes_transferred, flags, &overlap_info->overlapped, nullptr);
     if (ret == SOCKET_ERROR) {
         int last_error = ::WSAGetLastError();
-        return last_error == WSA_IO_PENDING ? 0 : last_error;
+        return last_error == WSA_IO_PENDING ? 0 : -last_error;
     }
     return 0;
 }
@@ -170,12 +174,13 @@ int IOCP::sendto(int s, bco::Buffer buff, const sockaddr_storage& addr, void*)
         return bytes;
 }
 
+//only ipv4 now
 int IOCP::accept(int s, std::function<void(int, const sockaddr_storage&)> cb)
 {
     AcceptOverlapInfo* overlap_info = new AcceptOverlapInfo;
     overlap_info->action = OverlapAction::Accept;
     overlap_info->cb2 = std::move(cb);
-    overlap_info->sock = static_cast<int>(::socket(AF_INET, SOCK_STREAM, 0));
+    overlap_info->sock = ::socket(AF_INET, SOCK_STREAM, 0);
     if (overlap_info->sock == INVALID_SOCKET) {
         delete overlap_info;
         return -1;
@@ -193,10 +198,10 @@ int IOCP::accept(int s, std::function<void(int, const sockaddr_storage&)> cb)
 LPFN_CONNECTEX GetConnectEx(SOCKET so)
 {
     GUID guid = WSAID_CONNECTEX;
-    LPFN_CONNECTEX fnConnectEx = NULL;
+    LPFN_CONNECTEX fnConnectEx = nullptr;
     DWORD nBytes = 0;
     if (SOCKET_ERROR == WSAIoctl(so, SIO_GET_EXTENSION_FUNCTION_POINTER, &guid, sizeof(guid), &fnConnectEx, sizeof(fnConnectEx), &nBytes, NULL, NULL)) {
-        return NULL;
+        return nullptr;
     }
 
     return fnConnectEx;
@@ -215,17 +220,26 @@ int IOCP::connect(int s, const sockaddr_storage& addr, std::function<void(int)> 
     ::SecureZeroMemory((PVOID)&overlap_info->overlapped, sizeof(WSAOVERLAPPED));
     DWORD bytes_sent;
     LPFN_CONNECTEX ConnectEx = GetConnectEx(overlap_info->sock);
-    bool success = ConnectEx(overlap_info->sock, (SOCKADDR*)&addr, sizeof(addr), nullptr, 0, &bytes_sent, &overlap_info->overlapped);
-    if (success) {
-        return success;
+    if (ConnectEx == nullptr) {
+        return -::WSAGetLastError();
     }
-    delete overlap_info;
-    return false;
+    bool success = ConnectEx(overlap_info->sock, (SOCKADDR*)&addr, sizeof(addr), nullptr, 0, &bytes_sent, &overlap_info->overlapped);
+    if (success || ::WSAGetLastError() == ERROR_IO_PENDING) {
+        return 0;
+    } else {
+        delete overlap_info;
+        return -::WSAGetLastError();
+    }
 }
 
 int IOCP::connect(int s, const sockaddr_storage& addr)
 {
-    return ::connect(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
+    int ret = ::connect(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
+    if (ret == -1) {
+        return -::WSAGetLastError();
+    } else {
+        return 0;
+    }
 }
 
 std::vector<PriorityTask> net::IOCP::harvest()
@@ -246,7 +260,7 @@ void IOCP::iocp_loop()
             return;
         }
         if (ret == 0 && overlapped == 0) {
-            auto err = ::GetLastError();
+            auto err = ::WSAGetLastError();
             switch (err) {
             case WAIT_TIMEOUT:
                 std::this_thread::yield();
@@ -255,7 +269,7 @@ void IOCP::iocp_loop()
                 break;
             }
         } else if (ret == 0 && overlapped != 0) {
-            auto err = ::GetLastError();
+            auto err = ::WSAGetLastError();
             (void)err;
             //TODO: handler error
         } else if (ret != 0 && overlapped == 0) {

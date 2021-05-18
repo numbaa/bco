@@ -14,18 +14,23 @@
 
 namespace bco {
 
+#ifdef _WIN32
+inline void set_non_block(SOCKET fd)
+{
+    if (fd == INVALID_SOCKET)
+        return;
+    u_long enable = 1;
+    ::ioctlsocket(fd, FIONBIO, &enable);
+}
+#else
 inline void set_non_block(int fd)
 {
     if (fd < 0)
         return;
-#ifdef _WIN32
-    u_long enable = 1;
-    ::ioctlsocket(fd, FIONBIO, &enable);
-#else
     int flags = ::fcntl(fd, F_GETFL, 0);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-#endif
 }
+#endif // _WIN32
 
 inline bool is_current_thread(const std::thread& th)
 {
@@ -34,7 +39,11 @@ inline bool is_current_thread(const std::thread& th)
 
 inline bool should_try_again()
 {
+#if _WIN32
+    return GetLastError() == WSAEWOULDBLOCK;
+#else
     return errno == EAGAIN || errno == EWOULDBLOCK;
+#endif // _WIN32
 }
 
 constexpr bool is_windows()

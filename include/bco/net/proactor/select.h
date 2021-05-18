@@ -38,7 +38,7 @@ class Select : public ProactorInterface {
         std::function<void(int)> cb;
         std::function<void(int, const sockaddr_storage&)> cb2;
         #ifdef _WIN32
-        void* recvmsg_func;
+        void* recvmsg_func = nullptr;
         #endif
         SelectTask() = default;
         SelectTask(int _fd, Action _action, bco::Buffer _buff, std::function<void(int)> _cb);

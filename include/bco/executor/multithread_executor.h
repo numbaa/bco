@@ -2,10 +2,11 @@
 #include <thread>
 #include <queue>
 #include <vector>
-#include <set>
+#include <map>
 #include <functional>
 #include <condition_variable>
 #include <random>
+#include <optional>
 
 #include <bco/executor.h>
 #include <bco/utils.h>
@@ -22,7 +23,7 @@ public:
     MultithreadExecutor& operator=(MultithreadExecutor&) = delete;
     ~MultithreadExecutor() override;
     void post(PriorityTask task) override;
-    void post_delay(std::chrono::microseconds duration, PriorityTask task) override;
+    void post_delay(std::chrono::milliseconds duration, PriorityTask task) override;
     void start() override;
     void set_proactor_task_getter(std::function<std::vector<PriorityTask>()> func) override;
     bool is_current_executor() override;
@@ -34,11 +35,12 @@ private:
     void main_loop();
     void worker_loop(const size_t worker_index);
     bool do_own_job(const size_t worker_index);
-    bool steal_job(const size_t worker_index);
+    bool steal_and_do_job(const size_t worker_index);
     void worker_sleep(const size_t worker_index);
+    std::optional<PriorityTask> take_one();
     void request_proactor_task();
     size_t next_worker_index();
-    std::tuple<std::vector<PriorityTask>, std::chrono::microseconds> get_timeup_delay_tasks();
+    std::tuple<std::vector<PriorityTask>, std::chrono::milliseconds> get_timeup_delay_tasks();
 
 private:
     class Worker {
@@ -50,7 +52,7 @@ private:
         void sleep_for(std::chrono::milliseconds ms);
         void wake_up();
         void post(PriorityTask task);
-        std::queue<PriorityTask> pop_all_tasks();
+        std::optional<PriorityTask> take_one();
     private:
         std::mutex mutex_;
         std::condition_variable cv_;
@@ -62,8 +64,9 @@ private:
     std::atomic<bool> stoped_ { false };
     std::mutex mutex_;
     std::condition_variable cv_;
-    std::set<std::thread::id> thread_ids_;
+    std::map<std::thread::id, size_t> thread_ids_;
     std::thread main_loop_thread_;
+    std::queue<PriorityTask> global_tasks_;
     std::priority_queue<PriorityDelayTask> delay_tasks_;
     WaitGroup wg_;
     std::weak_ptr<Context> ctx_;

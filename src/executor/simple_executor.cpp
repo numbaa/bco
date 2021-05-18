@@ -24,7 +24,7 @@ void SimpleExecutor::post(PriorityTask task)
     //notify here ?
 }
 
-void SimpleExecutor::post_delay(std::chrono::microseconds duration, PriorityTask task)
+void SimpleExecutor::post_delay(std::chrono::milliseconds duration, PriorityTask task)
 {
     std::lock_guard<std::mutex> lock { mutex_ };
     delay_tasks_.push({ duration, task });
@@ -85,7 +85,7 @@ std::deque<PriorityTask> SimpleExecutor::get_pending_tasks()
     return std::move(tasks_);
 }
 
-std::tuple<std::vector<PriorityTask>, std::chrono::microseconds> SimpleExecutor::get_timeup_delay_tasks()
+std::tuple<std::vector<PriorityTask>, std::chrono::milliseconds> SimpleExecutor::get_timeup_delay_tasks()
 {
     std::vector<PriorityTask> tasks;
     auto now = std::chrono::steady_clock::now();
@@ -95,9 +95,9 @@ std::tuple<std::vector<PriorityTask>, std::chrono::microseconds> SimpleExecutor:
         delay_tasks_.pop();
     }
     if (!delay_tasks_.empty()) {
-        return { tasks, std::chrono::duration_cast<std::chrono::microseconds>(delay_tasks_.top().run_at - now) };
+        return { tasks, std::chrono::duration_cast<std::chrono::milliseconds>(delay_tasks_.top().run_at - now) };
     } else {
-        return { tasks, std::chrono::microseconds { 10 } };
+        return { tasks, std::chrono::milliseconds { 10 } };
     }
 }
 

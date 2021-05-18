@@ -1,3 +1,6 @@
+#include <algorithm>
+#include <ranges>
+#include <numeric>
 #include <bco/executor/multithread_executor.h>
 
 namespace bco {
@@ -25,10 +28,16 @@ MultithreadExecutor::~MultithreadExecutor()
 
 void MultithreadExecutor::post(PriorityTask task)
 {
-    workers_[next_worker_index()].post(task);
+    auto it = thread_ids_.find(std::this_thread::get_id());
+    if (it == thread_ids_.cend()) {
+        std::lock_guard lock { mutex_ };
+        global_tasks_.push(task);
+    } else {
+        workers_[it->second].post(task);
+    }
 }
 
-void MultithreadExecutor::post_delay(std::chrono::microseconds duration, PriorityTask task)
+void MultithreadExecutor::post_delay(std::chrono::milliseconds duration, PriorityTask task)
 {
     std::lock_guard lock { mutex_ };
     delay_tasks_.push({ duration, task });
@@ -39,7 +48,7 @@ void MultithreadExecutor::start()
     main_loop_thread_ = std::thread {std::bind(&MultithreadExecutor::main_loop, this)};
     for (size_t i = 0; i < worker_size_; i++) {
         workers_[i].set_thread(std::thread { std::bind(&MultithreadExecutor::worker_loop, this, i) });
-        thread_ids_.insert(workers_[i].thread_id());
+        thread_ids_[workers_[i].thread_id()] = i;
     }
     wg_.wait();
 }
@@ -93,7 +102,7 @@ void MultithreadExecutor::worker_loop(const size_t worker_index)
 {
     wg_.done();
     while (!stoped_) {
-        bool has_job = do_own_job(worker_index) || steal_job(worker_index);
+        bool has_job = do_own_job(worker_index) || steal_and_do_job(worker_index);
         if (!has_job) {
             request_proactor_task();
             worker_sleep(worker_index);
@@ -103,21 +112,48 @@ void MultithreadExecutor::worker_loop(const size_t worker_index)
 
 bool MultithreadExecutor::do_own_job(const size_t worker_index)
 {
-    auto tasks = workers_[worker_index].pop_all_tasks();
-    if (tasks.empty()) {
+    auto task = workers_[worker_index].take_one();
+    if (not task.has_value()) {
         return false;
     }
-    while (not tasks.empty()) {
-        tasks.front()();
-        tasks.pop();
-    }
+    task->run();
     return true;
 }
 
-bool MultithreadExecutor::steal_job(const size_t worker_index)
+bool MultithreadExecutor::steal_and_do_job(const size_t worker_index)
 {
-    //ÔÝ²»ÊµÏÖ
-    (void)worker_index;
+    auto task = take_one();
+    if (task.has_value()) {
+        task->run();
+        return true;
+    }
+
+    size_t start_index = next_worker_index();
+    std::vector<size_t> indexs(workers_.size());
+    std::iota(indexs.begin(), indexs.end(), 0);
+    std::rotate(indexs.begin(), indexs.begin() + start_index, indexs.end());
+    for (size_t index : indexs | std::views::filter([worker_index](size_t i) { return i != worker_index; })) {
+        auto task = workers_[index].take_one();
+        if (task.has_value()) {
+            task->run();
+            return true;
+        }
+    }
+    /*
+    const size_t size = workers_.size();
+    auto skip_current = [worker_index](size_t index) { return index != worker_index; };
+    using namespace std;
+    for (size_t index : views::join(views::iota(0, size), views::iota(0, size))
+                        | views::drop(start_index)
+                        | views::take(size)
+                        | views::filter(skip_current)) {
+        auto task = workers_[index].take_one();
+        if (task.has_value()) {
+            task->run();
+            return true;
+        }
+    }
+    */
     return false;
 }
 
@@ -125,6 +161,18 @@ void MultithreadExecutor::worker_sleep(const size_t worker_index)
 {
     constexpr auto kSleepTime = std::chrono::milliseconds { 2 };
     workers_[worker_index].sleep_for(kSleepTime);
+}
+
+std::optional<PriorityTask> MultithreadExecutor::take_one()
+{
+    std::lock_guard lock { mutex_ };
+    if (global_tasks_.empty()) {
+        return std::nullopt;
+    } else {
+        auto task = global_tasks_.front();
+        global_tasks_.pop();
+        return task;
+    }
 }
 
 void MultithreadExecutor::request_proactor_task()
@@ -137,7 +185,7 @@ size_t MultithreadExecutor::next_worker_index()
     return random_dis_(random_engine_);
 }
 
-std::tuple<std::vector<PriorityTask>, std::chrono::microseconds> MultithreadExecutor::get_timeup_delay_tasks()
+std::tuple<std::vector<PriorityTask>, std::chrono::milliseconds> MultithreadExecutor::get_timeup_delay_tasks()
 {
     std::vector<PriorityTask> tasks;
     auto now = std::chrono::steady_clock::now();
@@ -147,9 +195,9 @@ std::tuple<std::vector<PriorityTask>, std::chrono::microseconds> MultithreadExec
         delay_tasks_.pop();
     }
     if (!delay_tasks_.empty()) {
-        return { tasks, std::chrono::duration_cast<std::chrono::microseconds>(delay_tasks_.top().run_at - now) };
+        return { tasks, std::chrono::duration_cast<std::chrono::milliseconds>(delay_tasks_.top().run_at - now) };
     } else {
-        return { tasks, std::chrono::microseconds { 10 } };
+        return { tasks, std::chrono::milliseconds { 10 } };
     }
 }
 
@@ -187,10 +235,16 @@ void MultithreadExecutor::Worker::post(PriorityTask task)
     cv_.notify_one();
 }
 
-std::queue<PriorityTask> MultithreadExecutor::Worker::pop_all_tasks()
+std::optional<PriorityTask> MultithreadExecutor::Worker::take_one()
 {
     std::lock_guard lock { mutex_ };
-    return std::move(tasks_);
+    if (tasks_.empty()) {
+        return std::nullopt;
+    } else {
+        auto task = tasks_.front();
+        tasks_.pop();
+        return task;
+    }
 }
 
 } // namespace bco

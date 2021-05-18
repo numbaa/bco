@@ -19,16 +19,17 @@ struct PriorityTask {
     Priority priority;
     std::function<void()> task;
     void operator()() { task(); }
+    void run() { task(); }
 };
 
 struct PriorityDelayTask : PriorityTask {
-    PriorityDelayTask(std::chrono::microseconds _delay, PriorityTask task)
+    PriorityDelayTask(std::chrono::milliseconds _delay, PriorityTask task)
         : PriorityTask(task)
         , delay(_delay)
         , run_at(std::chrono::steady_clock::now() + delay)
     {
     }
-    PriorityDelayTask(PriorityTask task, std::chrono::microseconds _delay)
+    PriorityDelayTask(PriorityTask task, std::chrono::milliseconds _delay)
         : PriorityTask(task)
         , delay(_delay)
         , run_at(std::chrono::steady_clock::now() + delay)
@@ -38,7 +39,7 @@ struct PriorityDelayTask : PriorityTask {
     {
         return delay < rhs.delay;
     }
-    std::chrono::microseconds delay;
+    std::chrono::milliseconds delay;
     std::chrono::time_point<std::chrono::steady_clock> run_at;
 };
 

@@ -21,9 +21,9 @@ template class TcpSocket<Epoll>;
 template <SocketProactor P>
 std::tuple<TcpSocket<P>, int> TcpSocket<P>::create(P* proactor, int family)
 {
-    int fd = proactor->create(family, SOCK_STREAM);
-    if (fd < 0)
-        return { TcpSocket {}, -1 };
+    int fd_or_errcode = proactor->create(family, SOCK_STREAM);
+    if (fd_or_errcode < 0)
+        return { TcpSocket {}, fd_or_errcode };
     else
         return { TcpSocket { proactor, family, fd }, 0 };
 }
@@ -40,14 +40,14 @@ template <SocketProactor P>
 Task<int> TcpSocket<P>::recv(bco::Buffer buffer)
 {
     Task<int> task;
-    int error = proactor_->recv(socket_, buffer, [task](int length) mutable {
+    int ret = proactor_->recv(socket_, buffer, [task](int bytes_or_errcode) mutable {
         if (task.await_ready())
             return;
-        task.set_result(std::forward<int>(length));
+        task.set_result(bytes_or_errcode);
         task.resume();
     });
-    if (error < 0) {
-        task.set_result(std::forward<int>(error));
+    if (ret < 0) {
+        task.set_result(ret);
     }
     return task;
 }
@@ -56,14 +56,14 @@ template <SocketProactor P>
 Task<int> TcpSocket<P>::send(bco::Buffer buffer)
 {
     Task<int> task;
-    int size = proactor_->send(socket_, buffer, [task](int length) mutable {
+    int ret = proactor_->send(socket_, buffer, [task](int bytes_or_errcode) mutable {
         if (task.await_ready())
             return;
-        task.set_result(std::forward<int>(length));
+        task.set_result(bytes_or_errcode);
         task.resume();
     });
-    if (size != 0) {
-        task.set_result(std::forward<int>(size));
+    if (ret < 0) {
+        task.set_result(ret);
     }
     return task;
 }
@@ -73,11 +73,11 @@ Task<std::tuple<TcpSocket<P>, Address>> TcpSocket<P>::accept()
 {
     Task<std::tuple<TcpSocket<P>, Address>> task;
     auto proactor = proactor_;
-    int ret = proactor_->accept(socket_, [task, proactor](int fd, const ::sockaddr_storage& address) mutable {
+    int ret = proactor_->accept(socket_, [task, proactor](int fd_or_errcode, const ::sockaddr_storage& address) mutable {
         if (task.await_ready())
             return;
-        TcpSocket s { proactor, address.ss_family, fd };
-        task.set_result(std::make_tuple(s, Address::from_storage(address )));
+        TcpSocket s { proactor, address.ss_family, fd_or_errcode };
+        task.set_result(std::make_tuple(s, Address::from_storage(address)));
         task.resume();
     });
     if (ret < 0) {
@@ -92,18 +92,13 @@ Task<int> TcpSocket<P>::connect(const Address& addr)
 {
     Task<int> task;
     sockaddr_storage storage {};
-    int ret = proactor_->connect(socket_, addr.to_storage(storage), [task](int ret) mutable {
-        if (ret == 0) {
-            task.set_result(0);
-        } else if (ret < 0) {
-            task.set_result(-errno);
-        } else {
-            assert(false);
-        }
+    int ret = proactor_->connect(socket_, addr.to_storage(storage), [task](int fd) mutable {
+        //TODO: error handling
+        task.set_result(0);
         task.resume();
     });
     if (ret < 0) {
-        task.set_result(std::move(ret));
+        task.set_result(ret);
     }
     return task;
 }
