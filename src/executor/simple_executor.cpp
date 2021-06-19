@@ -19,9 +19,12 @@ SimpleExecutor::~SimpleExecutor()
 
 void SimpleExecutor::post(PriorityTask task)
 {
-    std::lock_guard<std::mutex> lock { mutex_ };
-    tasks_.push_back(task);
-    //notify here ?
+    {
+        std::lock_guard<std::mutex> lock { mutex_ };
+        tasks_.push_back(task);
+        wakeup_ = true;
+    }
+    sleep_cv_.notify_one();
 }
 
 void SimpleExecutor::post_delay(std::chrono::milliseconds duration, PriorityTask task)

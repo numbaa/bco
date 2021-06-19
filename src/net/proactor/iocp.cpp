@@ -303,7 +303,7 @@ void IOCP::handle_overlap_success(WSAOVERLAPPED* overlapped, int bytes)
         }
         {
             std::lock_guard lock { mtx_ };
-            completed_tasks_.push_back(PriorityTask { Priority::Medium, std::bind(accept_info->cb2, overlap_info->sock, addr) });
+            completed_tasks_.push_back(PriorityTask { Priority::Medium, std::bind(accept_info->cb2, static_cast<int>(overlap_info->sock), addr) });
         }
         delete accept_info;
         break;

@@ -51,7 +51,7 @@ concept Proactor = requires(T t) {
 class ProactorInterface {
 public:
     virtual ~ProactorInterface() {};
-    virtual std::vector<PriorityTask> harvest() = 0;
+    virtual std::vector<PriorityTask> harvest() { return {}; }
 };
 
 } // namespace bco

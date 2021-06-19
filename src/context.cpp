@@ -27,7 +27,7 @@ std::vector<PriorityTask> Context::get_proactor_tasks()
     for (auto& [_, proactor] : proactors_) {
         std::ranges::copy(proactor->harvest(), std::back_inserter(tasks));
     }
-    return std::move(tasks);
+    return tasks;
 }
 
 void Context::start()

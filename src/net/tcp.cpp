@@ -25,7 +25,7 @@ std::tuple<TcpSocket<P>, int> TcpSocket<P>::create(P* proactor, int family)
     if (fd_or_errcode < 0)
         return { TcpSocket {}, fd_or_errcode };
     else
-        return { TcpSocket { proactor, family, fd }, 0 };
+        return { TcpSocket { proactor, family, fd_or_errcode }, 0 };
 }
 
 template <SocketProactor P>
@@ -94,6 +94,7 @@ Task<int> TcpSocket<P>::connect(const Address& addr)
     sockaddr_storage storage {};
     int ret = proactor_->connect(socket_, addr.to_storage(storage), [task](int fd) mutable {
         //TODO: error handling
+        (void)fd;
         task.set_result(0);
         task.resume();
     });

@@ -133,9 +133,9 @@ bool MultithreadExecutor::steal_and_do_job(const size_t worker_index)
     std::iota(indexs.begin(), indexs.end(), 0);
     std::rotate(indexs.begin(), indexs.begin() + start_index, indexs.end());
     for (size_t index : indexs | std::views::filter([worker_index](size_t i) { return i != worker_index; })) {
-        auto task = workers_[index].take_one();
-        if (task.has_value()) {
-            task->run();
+        auto task2 = workers_[index].take_one();
+        if (task2.has_value()) {
+            task2->run();
             return true;
         }
     }
