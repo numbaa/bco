@@ -29,8 +29,10 @@ inline auto call_with_lock(Function&& func, Args&&... args) -> decltype(func(std
 }
 */
 
+namespace detail {
+
 template <typename T>
-inline void write_big_endian(uint8_t* buff, const T& value)
+inline void write_different_endian(uint8_t* buff, const T& value)
 {
     for (size_t i = 0; i < sizeof(value); i++) {
         buff[i] = static_cast<uint8_t>(value >> ((sizeof(value) - 1 - i) * 8));
@@ -38,7 +40,7 @@ inline void write_big_endian(uint8_t* buff, const T& value)
 }
 
 template <typename T>
-inline void read_big_endian(const uint8_t* buff, T& value)
+inline void read_different_endian(const uint8_t* buff, T& value)
 {
     value = 0;
     for (size_t i = 0; i < sizeof(value); i++) {
@@ -47,7 +49,7 @@ inline void read_big_endian(const uint8_t* buff, T& value)
 }
 
 template <typename T>
-inline void write_little_endian(uint8_t* buff, const T& value)
+inline void write_same_endian(uint8_t* buff, const T& value)
 {
     for (size_t i = 0; i < sizeof(value); i++) {
         buff[i] = static_cast<uint8_t>(value >> (i * 8));
@@ -55,11 +57,53 @@ inline void write_little_endian(uint8_t* buff, const T& value)
 }
 
 template <typename T>
-inline void read_little_endian(const uint8_t* buff, T& value)
+inline void read_same_endian(const uint8_t* buff, T& value)
 {
     value = 0;
     for (size_t i = 0; i < sizeof(value); i++) {
         value |= buff[i] << (i * 8);
+    }
+}
+
+} // namespace detial
+
+template <typename T>
+inline void write_big_endian(uint8_t* buff, const T& value)
+{
+    if constexpr (std::endian::native == std::endian::big) {
+        detail::write_same_endian(buff, value);
+    } else {
+        detail::write_different_endian(buff, value);
+    }
+}
+
+template <typename T>
+inline void read_big_endian(const uint8_t* buff, T& value)
+{
+    if constexpr (std::endian::native == std::endian::big) {
+        detail::read_same_endian(buff, value);
+    } else {
+        detail::read_different_endian(buff, value);
+    }
+}
+
+template <typename T>
+inline void write_little_endian(uint8_t* buff, const T& value)
+{
+    if constexpr (std::endian::native == std::endian::little) {
+        detail::write_same_endian(buff, value);
+    } else {
+        detail::write_different_endian(buff, value);
+    }
+}
+
+template <typename T>
+inline void read_little_endian(const uint8_t* buff, T& value)
+{
+    if constexpr (std::endian::native == std::endian::little) {
+        detail::read_same_endian(buff, value);
+    } else {
+        detail::read_different_endian(buff, value);
     }
 }
 

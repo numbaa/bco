@@ -17,12 +17,13 @@ public:
     BufferBase(const std::span<uint8_t> data);
     BufferBase(std::vector<uint8_t>&& data);
     size_t size() const;
-    void push_back(const std::span<uint8_t> data, bool new_slice = false);
+    void push_back(const std::span<const uint8_t> data, bool new_slice = false);
     void push_back(std::vector<uint8_t>&& data, bool new_slice = false);
-    void insert(size_t index, const std::span<uint8_t> data);
+    void insert(size_t index, const std::span<const uint8_t> data);
     void insert(size_t index, std::vector<uint8_t>&& data);
     uint8_t& operator[](size_t index);
     std::vector<std::span<uint8_t>> data(size_t start, size_t end);
+    const std::vector<std::span<const uint8_t>> cdata(size_t start, size_t end) const;
 
     template <typename T>
     bool read_big_endian_at(size_t index, T& value);
@@ -52,14 +53,14 @@ public:
     size_t size() const;
     bool is_subbuf() const;
     Buffer subbuf(size_t start, size_t count);
-    void push_back(const std::span<uint8_t> data, bool new_slice = false);
+    void push_back(const std::span<const uint8_t> data, bool new_slice = false);
     void push_back(std::vector<uint8_t>&& data, bool new_slice = false);
-    void insert(size_t index, const std::span<uint8_t> data);
+    void insert(size_t index, const std::span<const uint8_t> data);
     void insert(size_t index, std::vector<uint8_t>&& data);
     uint8_t& operator[](size_t index);
     const uint8_t& operator[](size_t index) const;
     std::vector<std::span<uint8_t>> data();
-    const std::vector<std::span<uint8_t>> data() const;
+    const std::vector<std::span<const uint8_t>> data() const;
 
     template <typename T>
     bool read_big_endian_at(size_t index, T& value);

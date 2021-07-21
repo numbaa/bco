@@ -60,7 +60,7 @@ size_t BufferBase::size() const
     return s;
 }
 
-void BufferBase::push_back(const std::span<uint8_t> data, bool new_slice)
+void BufferBase::push_back(const std::span<const uint8_t> data, bool new_slice)
 {
     if (new_slice || buffer_.empty()) {
         buffer_.push_back(std::vector<uint8_t> { data.begin(), data.end() });
@@ -84,7 +84,7 @@ void BufferBase::push_back(std::vector<uint8_t>&& data, bool new_slice)
     }
 }
 
-void BufferBase::insert(size_t index, const std::span<uint8_t> data)
+void BufferBase::insert(size_t index, const std::span<const uint8_t> data)
 {
     size_t buffer_size = size();
     if (index == buffer_size) {
@@ -147,6 +147,33 @@ std::vector<std::span<uint8_t>> BufferBase::data(size_t start, size_t end)
 {
     //TODO: 测试这个函数
     std::vector<std::span<uint8_t>> slices;
+    slices.reserve(buffer_.size());
+    size_t curr_pos = 0;
+    for (auto& chunk : buffer_) {
+        if (curr_pos >= end)
+            break;
+        if (curr_pos == start) {
+            slices.emplace_back(chunk.data(), chunk.size());
+        } else if (curr_pos + chunk.size() <= start) {
+            ;
+        } else if (curr_pos < start && curr_pos + chunk.size() > start) {
+            //比较 end 和 curr_pos + chunk.size()的大小，取小的
+            slices.emplace_back(chunk.data() + start - curr_pos, std::min(end - start, chunk.size() - start));
+        } else if (curr_pos > start && curr_pos + chunk.size() <= end) {
+            slices.emplace_back(chunk.data(), chunk.size());
+        } else if (curr_pos > start && curr_pos + chunk.size() > end) {
+            slices.emplace_back(chunk.data(), end - curr_pos);
+        } else {
+            std::abort();
+        }
+        curr_pos += chunk.size();
+    }
+    return slices;
+}
+
+const std::vector<std::span<const uint8_t>> BufferBase::cdata(size_t start, size_t end) const
+{
+    std::vector<std::span<const uint8_t>> slices;
     slices.reserve(buffer_.size());
     size_t curr_pos = 0;
     for (auto& chunk : buffer_) {
@@ -249,7 +276,7 @@ Buffer Buffer::subbuf(size_t start, size_t count)
     return Buffer { start, start + count, base_ };
 }
 
-void Buffer::push_back(const std::span<uint8_t> data, bool new_slice)
+void Buffer::push_back(const std::span<const uint8_t> data, bool new_slice)
 {
     if (is_subbuf()) {
         throw std::exception { "Unsupported function" };
@@ -265,7 +292,7 @@ void Buffer::push_back(std::vector<uint8_t>&& data, bool new_slice)
     base_->push_back(std::move(data), new_slice);
 }
 
-void Buffer::insert(size_t index, const std::span<uint8_t> data)
+void Buffer::insert(size_t index, const std::span<const uint8_t> data)
 {
     if (is_subbuf()) {
         throw std::exception { "Unsupported function" };
@@ -302,9 +329,9 @@ std::vector<std::span<uint8_t>> Buffer::data()
     return base_->data(start_, end_);
 }
 
-const std::vector<std::span<uint8_t>> Buffer::data() const
+const std::vector<std::span<const uint8_t>> Buffer::data() const
 {
-    return base_->data(start_, end_);
+    return base_->cdata(start_, end_);
 }
 
 template <typename T>
